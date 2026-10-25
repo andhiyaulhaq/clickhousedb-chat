@@ -1,0 +1,147 @@
+[1/134] ok            Tampilkan rata-rata nilai deal per stage.
+[2/134] ok            Jumlah customer per industri ada berapa?
+[3/134] ok            Nilai deal paling besar di setiap stage berapa?
+[4/134] ok            cari nilai deal terkecil tiap stage
+[5/134] ok            rekap aktivitas dgn sentimen negatif per tipe
+[6/134] ok            Sales mana saja yang memegang lebih dari 200 deal?
+[7/134] wrong         Cari customer yang punya lebih dari 5 tiket support.
+[8/134] ok            Hitung weighted pipeline per sales.
+[9/134] wrong         forecast per stage brp?
+[10/134] ok            Jumlah customer per wilayah pelanggan dan tier.
+[11/134] ok            Ada berapa sales berbeda yang menangani deal di tiap stage?
+[12/134] ok            nilai deal terbesar sama terkecil per stage
+[13/134] ok            Berapa deal yang melibatkan Security-Plus di tiap stage?
+[14/134] ok            Rata-rata jumlah produk per deal di setiap stage?
+[15/134] ok            Tampilkan persentil 75 nilai deal untuk tiap stage.
+[16/134] ok            omset kuartal ini per segmen pelanggan
+[17/134] ok            Untuk deal won, tampilkan per produk rata-rata dan median nilai deal, 
+[18/134] ok            Tampilkan kuartil 25, 50, dan 75 nilai deal per stage dalam satu kolom
+[19/134] ok            Untuk tiket berprioritas high dan urgent, tampilkan per status dan pri
+[20/134] ok            brp customer yg tier Gold?
+[21/134] ok            Tampilkan nama pelanggan dan apakah dia punya tag retail atau tidak.
+[22/134] ok            Tampilkan deal yang produk pertamanya API-Gateway.
+[23/134] ok            cari customer SMB yg ada tag tech, nama sama email aja
+[24/134] ok            Cari pelanggan yang punya tag berawalan 'high'.
+[25/134] ok            Berapa persen pelanggan yang punya tag high-value di tiap segmen?
+[26/134] ok            Rata-rata waktu penyelesaian tiket per tier pelanggan berapa jam?
+[27/134] ok            Top 3 produk dengan rata-rata nilai deal won tertinggi.
+[28/134] ok            Berapa rata-rata nilai deal untuk tiap tier pelanggan?
+[29/134] error         Cari pelanggan yang punya deal won tapi belum pernah beli Cloud-Storag
+[30/134] ok            Top 3 tag pelanggan dengan omset terbesar tahun ini.
+[31/134] ok            Hitung jumlah aktivitas dengan sentimen negatif.
+[32/134] ok            Tampilkan daftar perusahaan pelanggan tanpa duplikat.
+[33/134] ok            rekap jumlah tiket yg masuk kuartal ini
+[34/134] wrong         Siapa 5 pelanggan pertama yang terdaftar di sistem?
+[35/134] ok            list 10 aktivitas paling lama durasinya
+[36/134] ok            Cari data pelanggan dengan email user10@example.com.
+[37/134] ok            Berapa total nilai deal yang lost tahun ini?
+[38/134] ok            Hitung rata-rata probabilitas deal di pipeline.
+[39/134] wrong         Hitung omset bulan lalu khusus deal Upsell dan Expansion.
+[40/134] ok            Hitung jumlah tiket terbuka dan jumlah tiket yang sudah resolved atau 
+[41/134] ok            rata2 durasi call vs meeting brp menit?
+[42/134] ok            Berapa proporsi deal aktif yang probability-nya minimal 70?
+[43/134] ok            Pelanggan baru bulan ini, berapa yang masih lead dan berapa yang sudah
+[44/134] ok            customer di wilayah APAC sama EMEA masing2 ada brp?
+[45/134] ok            Berapa rasio jumlah email terhadap jumlah call?
+[46/134] ok            Hitung jumlah pelanggan aktif dan churn untuk tiap tier.
+[47/134] ok            Tampilkan omset dan nilai pipeline per segmen pelanggan.
+[48/134] ok            Berapa jumlah deal won dan lost kuartal ini di setiap wilayah sales?
+[49/134] ok            omset bulan lalu per wilayah pelanggan + jumlah deal won-nya
+[50/134] ok            Per tipe aktivitas, berapa rasio aktivitas yang durasinya lebih dari 3
+[51/134] ok            top 5 sales dgn win rate tertinggi tahun ini
+[52/134] ok            Per segmen, berapa jumlah deal won dan total omset di kuartal ini?
+[53/134] wrong         Per sales, tampilkan id, nama, tim, win rate, total omset, dan jumlah 
+[54/134] ok            Cari sales yang win rate-nya di bawah 0.6 padahal sudah punya minimal 
+[55/134] ok            list semua aktivitas hari ini
+[56/134] ok            aktivitas paling rame jam berapa aja? rekap per jam
+[57/134] ok            Tampilkan tiket yang dibuat dalam 24 jam terakhir.
+[58/134] ok            list deal won bulan ini sama berapa hari closingnya, dari yg paling la
+[59/134] ok            Tampilkan omset per kuartal untuk tahun lalu.
+[60/134] ok            Rata-rata nilai deal won per bulan dalam 6 bulan terakhir.
+[61/134] wrong         Berapa banyak deal yang sudah closing (won/lost) dalam 30 hari atau ku
+[62/134] ok            tiket bulan ini yg resolusinya lebih dari 48 jam, per prioritas
+[63/134] ok            Rekap jumlah demo per bulan di tahun 2025.
+[64/134] ok            5 rep dengan aktivitas terbanyak minggu lalu, tampilkan nama dan team
+[65/134] wrong         Untuk deal yang dibuat bulan ini, berapa aktivitas per tipe yang terja
+[66/134] ok            Bandingkan jumlah pelanggan baru per segmen tahun ini dengan periode y
+[67/134] ok            Rata-rata waktu resolusi tiket per bulan untuk pelanggan aktif segmen 
+[68/134] wrong         Omset per bulan tahun ini dibandingkan dengan bulan yang sama tahun la
+[69/134] ok            Hitung jumlah tiket yang masuk hari ini dari pelanggan wilayah NA.
+[70/134] ok            Tampilkan daftar nama unik (tanpa duplikat) pelanggan baru bulan ini y
+[71/134] ok            Tampilkan total omset per sales bulan lalu, urutkan dari yang terbesar
+[72/134] ok            Berapa jumlah aktivitas untuk masing-masing tim sales?
+[73/134] ok            Hitung win rate per wilayah sales.
+[74/134] ok            weighted pipeline per segmen customer berapa?
+[75/134] ok            10 sales dengan total durasi meeting terbanyak tahun ini siapa aja?
+[76/134] ok            Berapa deal baru yang dibuat bulan ini di tiap wilayah sales?
+[77/134] ok            jumlah tiket terbuka per tag customer
+[78/134] ok            Rata-rata waktu penyelesaian tiket prioritas high berdasarkan status p
+[79/134] ok            list pelanggan yg udah dihubungi lebih dari 20 kali
+[80/134] ok            Total nilai deal yang melibatkan Analytics-Suite per tim sales.
+[81/134] ok            Bandingkan omset bulan ini dan bulan lalu untuk setiap tim sales.
+[82/134] ok            Per tim sales, hitung jumlah deal pipeline bernilai di atas 250.000 da
+[83/134] ok            list deal yg lagi negotiation, sekalian company customer sama tim sale
+[84/134] ok            Siapa saja sales yang punya deal dengan pelanggan berstatus blackliste
+[85/134] ok            Tampilkan deal dengan probabilitas minimal 80 persen, lengkap dengan n
+[86/134] ok            Tampilkan meeting yang durasinya lebih dari 90 menit: nama perusahaan,
+[87/134] ok            Deal apa aja yg dibuat 7 hari terakhir? sertain nama customer & tim sa
+[88/134] ok            Hitung jumlah pelanggan aktif berbeda yang pernah dihubungi via email 
+[89/134] ok            Berapa total menit demo tim Outbound-Enterprise ke pelanggan wilayah A
+[90/134] ok            Tampilkan total omset per kombinasi wilayah pelanggan dan wilayah sale
+[91/134] ok            Hitung win rate setiap sales untuk pelanggan Mid-Market.
+[92/134] ok            Berapa rata-rata nilai deal won per segmen pelanggan dan wilayah sales
+[93/134] ok            tim sales mana yg forecast-nya paling gede buat customer Mid-Market?
+[94/134] ok            Per tim sales, berapa persen deal pipeline-nya yang berasal dari pelan
+[95/134] ok            Per industri pelanggan, berapa total omset yang dihasilkan tim Outboun
+[96/134] wrong         Hitung tiket terbuka per tim sales, berdasarkan sales yang punya deal 
+[97/134] ok            Bandingkan rata-rata durasi aktivitas bersentimen positif vs negatif p
+[98/134] error         Per tim sales, berapa pelanggan Enterprise unik yang punya deal pipeli
+[99/134] ok            Per wilayah pelanggan, tampilkan total omset, jumlah tiket, dan rata-r
+[100/134] ok            Hitung rata-rata lama closing (hari dari dibuat sampai closed) deal wo
+[101/134] ok            Tampilkan pelanggan Enterprise yang omsetnya di atas 500 ribu dan puny
+[102/134] ok            Rata-rata waktu resolusi tiket per segmen, khusus pelanggan yang punya
+[103/134] ok            Hitung win rate per wilayah sales untuk deal yang di-close kuartal ini
+[104/134] ok            Pelanggan yang total nilai deal pipeline-nya di atas 1 juta tapi tidak
+[105/134] ok            list customer yg belum pernah punya deal sama sekali
+[106/134] ok            Aktivitas dengan durasi paling lama apa saja?
+[107/134] ok            Cari aktivitas meeting dari sales tim Account-Management yang durasiny
+[108/134] ok            Total nilai deal yang ditangani sales Outbound-Enterprise berapa?
+[109/134] ok            Sales mana saja yang total omsetnya di atas rata-rata omset per sales?
+[110/134] ok            Berapa rasio pelanggan yang pernah punya deal won dibanding seluruh pe
+[111/134] ok            produk apa yg paling sering muncul di deal customer Enterprise? urutka
+[112/134] ok            Sales mana yang rata-rata durasi aktivitasnya lebih lama dari rata-rat
+[113/134] ok            Pelanggan mana yang paling banyak bikin tiket?
+[114/134] wrong         Ada berapa pelanggan churn yang masih dapat deal won dalam 365 hari te
+[115/134] ok            Sales mana yang win rate-nya di atas win rate keseluruhan?
+[116/134] ok            Tampilkan aktivitas paling baru untuk setiap tipe aktivitas.
+[117/134] wrong         Bandingkan rata-rata waktu penyelesaian tiket antara pelanggan dengan 
+[118/134] ok            Tampilkan tiket terbuka milik pelanggan yang total nilai deal-nya masu
+[119/134] ok            brp persen nilai pipeline yg datang dari customer yg udah churn?
+[120/134] ok            Tampilkan peringkat nilai deal di dalam masing-masing stage.
+[121/134] wrong         Hitung selisih nilai setiap deal won dengan rata-rata nilai deal won.
+[122/134] ok_extra_cols Tampilkan durasi aktivitas dan durasi maksimum untuk tipe aktivitas ya
+[123/134] ok            Beri dense rank pelanggan tier Gold berdasarkan tanggal daftar paling 
+[124/134] ok            rekap pelanggan baru per bulan tahun ini + total kumulatifnya
+[125/134] partial_cols  Cari pelanggan yang aktivitas terakhirnya bersentimen negatif.
+[126/134] ok            Berapa hari jeda antara tiap pelanggan baru dengan pelanggan sebelumny
+[127/134] wrong         Dense rank pelanggan yang punya tiket high atau urgent, berdasarkan ju
+[128/134] ok            Tampilkan aktivitas yang durasinya lebih lama dari aktivitas sebelumny
+[129/134] ok            bulan apa yg omsetnya paling gede tahun ini? kasih ranking semua bulan
+[130/134] ok            Rekap jumlah tiket per status dan persentasenya dari total tiket bulan
+[131/134] ok            Rekap pelanggan baru per bulan per wilayah pelanggan tahun ini, plus t
+[132/134] ok            Cari pelanggan yang deal terakhirnya (berdasarkan tanggal dibuat) bera
+[133/134] wrong         Rekap jumlah aktivitas mingguan per tim dalam 60 hari terakhir dan sel
+[134/134] ok            Omset kumulatif bulanan per wilayah sales tahun ini.
+
+text2sql-3b-v3: strict 116/134 = 86.6%, lenient (extra columns ok) 117/134 = 87.3%
+  ok 116, ok_extra_cols 1, partial_cols 1, wrong 14, error 2, avg 6.7s/query, 6 queries needed a retry
+  category   strict lenient partial  of
+  agg_group      17      17       0  19
+  array_map      10      10       0  11
+  basic           7       7       0   9
+  cond_agg       14      14       0  15
+  date           11      11       0  14
+  join2          14      14       0  14
+  join3          20      20       0  22
+  subquery       13      13       0  15
+  window         10      11       1  15

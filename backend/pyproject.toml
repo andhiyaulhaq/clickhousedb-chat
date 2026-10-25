@@ -1,0 +1,11 @@
+[project]
+name = "chat-backend"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["sqlglot"]
+
+[dependency-groups]
+dev = ["pytest"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

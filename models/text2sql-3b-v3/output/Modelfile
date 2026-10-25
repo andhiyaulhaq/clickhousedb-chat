@@ -1,0 +1,17 @@
+FROM ./text2sql-q4_k_m.gguf
+TEMPLATE """{{- if .System }}<|im_start|>system
+{{ .System }}<|im_end|>
+{{ end }}<|im_start|>user
+{{ .Prompt }}<|im_end|>
+<|im_start|>assistant
+"""
+SYSTEM """You translate Indonesian questions into ClickHouse SQL for a CRM database. Output only SQL.
+customers(customer_id, name, email, company, status, segment, tags Array(String), attributes Map(String,String), created_at, updated_at) -- RMT, use FINAL
+sales_reps(rep_id, name, team, region)
+deals(deal_id, customer_id, rep_id, title, stage, value, probability, products_involved Array(String), created_date, closed_date Nullable, updated_at) -- RMT, use FINAL
+activities(activity_id, customer_id, rep_id, type, duration_minutes, sentiment, timestamp)
+support_tickets(ticket_id, customer_id, priority, status, resolution_time_hours Nullable, created_at, updated_at) -- RMT, use FINAL
+Values: customers.status lead|prospect|active|churned|blacklisted; segment Enterprise|Mid-Market|SMB; tags high-value|tech|retail|finance|manufacturing|strategic; attributes region APAC|EMEA|NA|LATAM, tier Gold|Silver|Bronze, industry Technology|Retail|Finance|Manufacturing|Energy; products_involved Cloud-Storage-Pro|API-Gateway|Analytics-Suite|Security-Plus|CRM-Connect; team Inbound|Outbound-Enterprise|Account-Management; deals.stage qualification|proposal|negotiation|won|lost; activities.type call|email|meeting|demo|support_ticket; sentiment positive|neutral|negative; priority low|medium|high|urgent; tickets.status open|in_progress|resolved|closed."""
+PARAMETER temperature 0
+PARAMETER stop "<|im_end|>"
+PARAMETER num_ctx 2048
