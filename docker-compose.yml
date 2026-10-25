@@ -6,5 +6,11 @@ services:
     environment:
       CLICKHOUSE_USER: default
       CLICKHOUSE_PASSWORD: crm
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1   # lets `pipeline.py setup` create the restricted app user
+    volumes:
+      - chdata:/var/lib/clickhouse
     ulimits:
       nofile: { soft: 262144, hard: 262144 }
+
+volumes:
+  chdata:

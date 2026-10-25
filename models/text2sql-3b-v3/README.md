@@ -39,8 +39,10 @@ Execution accuracy: the generated query must return the same rows as the referen
 | Holdout, 133 independent questions, never trained or tuned on | 89.5% | 92.5% |
 | Holdout re-run on this repo's database, 2026-10-25 | 88.0% | 91.0% |
 | Dev eval, 134 questions, used to guide the data (optimistic) | 85.8% (86.6% with 2 retries) | 86.6% |
+| **Full app pipeline** (model + validator + executor + up to 2 repairs), holdout, 2026-10-25 | 88.7% | 91.7% |
+| **Full app pipeline**, dev set, 2026-10-25 | 85.1% | 85.1% |
 
-Margin is about ±5 points. Both sets were written by Claude agents from the same spec, so expect lower accuracy on real users' phrasing. The weakest holdout categories in the re-run were `subquery` (12/17 strict), `window` (12/16) and `join2` (11/13). Per-question results are in `data/results/`.
+The full-pipeline rows come from `backend/eval_gold.py`: the model's SQL was identical to the bare run for 130 of 134 dev questions, so validation and repairs neither add nor lose accuracy beyond noise (repairs rescued 1 question, as in the bare retry run). Re-seeding ClickHouse alone moves scores by about 1 point. Margin is about ±5 points. Both sets were written by Claude agents from the same spec, so expect lower accuracy on real users' phrasing. The weakest holdout categories in the re-run were `subquery` (12/17 strict), `window` (12/16) and `join2` (11/13). Per-question results are in `data/results/`.
 
 ## Known limits
 - **Joining two fact tables** (deals + tickets, deals + activities) for per-customer or per-rep totals often sums across multiplied rows. The query runs and returns wrong numbers silently. This is the most common real error.

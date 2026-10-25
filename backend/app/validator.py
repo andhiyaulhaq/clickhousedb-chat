@@ -16,13 +16,11 @@ class Unanswerable(Invalid):
     """Unknown table or column: the data cannot answer this. Do not retry."""
 
 
-def _load_schema() -> dict[str, set[str]]:
-    stmts = sqlglot.parse(SCHEMA.read_text(encoding="utf-8"), read="clickhouse")
-    return {s.this.this.name: {c.name for c in s.this.expressions} for s in stmts}
-
-
-TABLES = _load_schema()
+_DDL = sqlglot.parse(SCHEMA.read_text(encoding="utf-8"), read="clickhouse")
+TABLES = {s.this.this.name: {c.name for c in s.this.expressions} for s in _DDL}
 COLUMNS = set().union(*TABLES.values())
+# ReplacingMergeTree tables show duplicate row versions unless read with FINAL
+REPLACING = {s.this.this.name for s in _DDL if "ReplacingMergeTree" in s.sql(dialect="clickhouse")}
 
 
 def validate(sql: str, limit: int = MAX_LIMIT) -> str:
@@ -46,13 +44,28 @@ def validate(sql: str, limit: int = MAX_LIMIT) -> str:
         if t.db not in ("", "crm") or t.name not in TABLES:
             raise Unanswerable(f"unknown table: {t.sql(dialect='clickhouse')}")
 
-    # ponytail: columns checked against the union of all tables, not per table; qualify-based check if misses show up
     aliases = {a.alias for a in tree.find_all(exp.Alias)}
     aliases |= {a.name for a in tree.find_all(exp.TableAlias)}
     aliases |= {c.name for a in tree.find_all(exp.TableAlias) for c in a.columns}
+    # qualifier -> real table. An alias bound to two different tables (reused in a subquery) is ambiguous, so it is skipped.
+    # A qualifier that is also a subquery or CTE alias (`(SELECT ... FROM customers AS c ...) AS c`) is ambiguous too.
+    derived = ctes | {s.alias for s in tree.find_all(exp.Subquery) if s.alias}
+    bound: dict[str, set[str]] = {}
+    for t in tree.find_all(exp.Table):
+        if t.name in TABLES and t.alias_or_name not in derived:
+            bound.setdefault(t.alias_or_name, set()).add(t.name)
     for c in tree.find_all(exp.Column):
-        if c.name not in COLUMNS and c.name not in aliases:
+        owner = bound.get(c.table, set())
+        if len(owner) == 1:  # d.value is checked against deals only: catches c.rep_id (rep_id lives on deals, not customers)
+            if c.name not in TABLES[next(iter(owner))]:
+                raise Unanswerable(f"unknown column: {c.table}.{c.name}")
+        # ponytail: unqualified columns and subquery/CTE qualifiers are checked against all tables; resolve scopes properly if misses show up
+        elif c.name not in COLUMNS and c.name not in aliases:
             raise Unanswerable(f"unknown column: {c.name}")
+
+    for t in tree.find_all(exp.Table):
+        if t.name in REPLACING and t.name not in ctes and not isinstance(t.parent, exp.Final):
+            raise Invalid(f"missing FINAL on {t.name}")
 
     if isinstance(tree, exp.Select):
         lim = tree.args.get("limit")

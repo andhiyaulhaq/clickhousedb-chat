@@ -27,9 +27,10 @@ def test_gold_all_pass():
     ("SELECT * FROM system.tables", Unanswerable),
     ("SELECT * FROM url('http://x', CSV)", Invalid),
     ("SELECT * FROM file('/etc/passwd')", Invalid),
-    ("SELECT * FROM deals INTO OUTFILE 'x'", Invalid),
+    ("SELECT * FROM deals FINAL INTO OUTFILE 'x'", Invalid),
     ("SELECT sales_rep FROM support_tickets", Unanswerable),
     ("SELECT * FROM crm.nope", Unanswerable),
+    ("SELECT r.team FROM support_tickets AS t FINAL JOIN customers AS c FINAL ON 1 JOIN sales_reps AS r ON c.rep_id = r.rep_id", Unanswerable),
 ])
 def test_rejects(sql, exc):
     with pytest.raises(exc):
@@ -37,7 +38,21 @@ def test_rejects(sql, exc):
 
 
 def test_limit():
-    assert validate("SELECT deal_id FROM deals").endswith("LIMIT 1000")
-    assert validate("SELECT deal_id FROM deals LIMIT 5") == "SELECT deal_id FROM deals LIMIT 5"
-    assert validate("SELECT deal_id FROM deals LIMIT 99999").startswith("SELECT * FROM (")
-    assert validate("SELECT deal_id FROM deals UNION ALL SELECT deal_id FROM deals").startswith("SELECT * FROM (")
+    assert validate("SELECT deal_id FROM deals FINAL").endswith("LIMIT 1000")
+    assert validate("SELECT deal_id FROM deals FINAL LIMIT 5") == "SELECT deal_id FROM deals FINAL LIMIT 5"
+    assert validate("SELECT deal_id FROM deals FINAL LIMIT 99999").startswith("SELECT * FROM (")
+    assert validate("SELECT deal_id FROM deals FINAL UNION ALL SELECT deal_id FROM deals FINAL").startswith("SELECT * FROM (")
+
+
+def test_final_required():
+    with pytest.raises(Invalid, match="missing FINAL"):
+        validate("SELECT d.deal_id FROM deals AS d")
+    with pytest.raises(Invalid, match="missing FINAL"):
+        validate("SELECT d.deal_id FROM deals AS d FINAL JOIN customers AS c ON d.customer_id = c.customer_id")
+    validate("SELECT r.rep_id FROM sales_reps AS r")  # not a ReplacingMergeTree table
+
+
+def test_outer_subquery_alias_may_shadow_inner_table_alias():
+    validate("SELECT c.total FROM (SELECT c.customer_id, count() AS total FROM customers AS c FINAL GROUP BY c.customer_id) AS c")
+    with pytest.raises(Unanswerable):  # a plain table alias is still checked against its own table
+        validate("SELECT c.rep_id FROM customers AS c FINAL")

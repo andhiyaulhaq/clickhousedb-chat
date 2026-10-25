@@ -66,8 +66,12 @@ def setup():
     ch("CREATE DATABASE crm", database="default")
     for s in statements(DDL) + statements((ROOT / "clickhouse" / "seed.sql").read_text(encoding="utf-8")):
         ch(s)
+    app_user = (ROOT / "clickhouse" / "app_user.sql").read_text(encoding="utf-8").replace("{password}", os.getenv("APP_CH_PASSWORD", "app"))
+    for s in statements(app_user):
+        ch(s, database="default")
     for t in ["customers", "sales_reps", "deals", "activities", "support_tickets"]:
         print(t, ch(f"SELECT count() FROM {t}").strip())
+    print("app user ready")
 
 
 def gemini(prompt):
