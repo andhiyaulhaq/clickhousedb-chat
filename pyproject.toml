@@ -1,5 +1,5 @@
 [project]
-name = "slm-text2sql-clickhouse"
+name = "clickhousedb-chat"
 version = "0.1.0"
 requires-python = ">=3.10"
 dependencies = []
