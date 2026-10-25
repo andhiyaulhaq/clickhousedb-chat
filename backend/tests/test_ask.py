@@ -1,8 +1,10 @@
 """The repair loop with the model and ClickHouse stubbed out."""
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 
-from app import executor, text_to_sql
+from app import config, executor, text_to_sql
 from app.executor import ExecError
 from app.main import app
 
@@ -62,7 +64,27 @@ def test_api_rejects_blank_question():
     assert c.post("/ask", json={"question": "x" * 501}).status_code == 422
 
 
-def test_api_503_when_backend_down(monkeypatch):
+def test_api_503_when_backend_down(monkeypatch, tmp_path):
     import httpx
+    monkeypatch.setattr(config, "LOG_PATH", tmp_path / "q.jsonl")
     monkeypatch.setattr(text_to_sql, "ask", lambda q: (_ for _ in ()).throw(httpx.ConnectError("down")))
     assert TestClient(app).post("/ask", json={"question": "halo"}).status_code == 503
+
+
+def test_ask_masks_emails_and_picks_chart(stub, monkeypatch):
+    sent, replies = stub
+    replies.append(GOOD)
+    monkeypatch.setattr(executor, "run", lambda sql: (["email", "n"], [["budi@acme.com", 1], ["ani@acme.com", 2]]))
+    r = text_to_sql.ask("email pelanggan")
+    assert r.rows == [["b***@acme.com", 1], ["a***@acme.com", 2]] and r.chart.type == "bar"
+
+
+def test_api_logs_each_question(stub, tmp_path, monkeypatch):
+    sent, replies = stub
+    replies.append(GOOD)
+    monkeypatch.setattr(config, "LOG_PATH", tmp_path / "logs" / "q.jsonl")
+    assert TestClient(app).post("/ask", json={"question": "berapa deal?"}).status_code == 200
+    text = config.LOG_PATH.read_text(encoding="utf-8")
+    entry = json.loads(text)
+    assert (entry["question"], entry["outcome"], entry["sql"], entry["rows"]) == ("berapa deal?", "ok", GOOD, 1)
+    assert "[[1]]" not in text  # no row data in the log

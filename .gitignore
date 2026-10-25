@@ -25,3 +25,6 @@ Thumbs.db
 data/train.jsonl
 data/rejected.jsonl
 data/archive/
+
+# Query log written by the backend (questions can be sensitive)
+data/logs/

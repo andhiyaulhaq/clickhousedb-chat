@@ -2,7 +2,7 @@
 
 Ask questions in Indonesian about CRM data. A fine-tuned 3B model (`text2sql-3b-v3`, running in Ollama) turns the question into ClickHouse SQL, the app validates and runs it read-only, and the answer comes back as a chart plus a short summary.
 
-**Status:** model trained and evaluated (88 to 89.5% strict on 133 independent questions); the backend answers questions end to end (`POST /ask`: model, validator, restricted ClickHouse user, up to 2 repairs). Result masking, charts, chat UI and summary are next. Internal pilot, local only. Details and build order: `docs/guide.md`.
+**Status:** model trained and evaluated (88 to 89.5% strict on 133 independent questions); the backend answers questions end to end (`POST /ask`: model, validator, restricted ClickHouse user, up to 2 repairs). Results come back with emails masked and a chart type chosen by rule; every question is logged to `data/logs/`. The chat UI and summary are next. Internal pilot, local only. Details and build order: `docs/guide.md`.
 
 ## Quick start
 ```bash

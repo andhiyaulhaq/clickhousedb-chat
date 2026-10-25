@@ -3,7 +3,7 @@ import re
 
 import httpx
 
-from app import config, executor, validator
+from app import config, executor, shaping, validator
 from app.schemas import AskResponse
 
 UNANSWERABLE = "Pertanyaan ini tidak bisa dijawab dari data yang tersedia."
@@ -33,7 +33,8 @@ def ask(question: str) -> AskResponse:
     while True:
         try:
             columns, rows = executor.run(validator.validate(sql))
-            return AskResponse(sql=sql, columns=columns, rows=rows, attempts=attempts)
+            rows = shaping.mask(rows)
+            return AskResponse(sql=sql, columns=columns, rows=rows, chart=shaping.pick_chart(columns, rows), attempts=attempts)
         except validator.Unanswerable:
             return AskResponse(sql=sql, error=UNANSWERABLE, attempts=attempts)
         except (validator.Invalid, executor.ExecError) as e:
