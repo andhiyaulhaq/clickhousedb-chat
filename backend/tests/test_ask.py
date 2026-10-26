@@ -152,3 +152,11 @@ def test_long_ranking_gets_a_note(stub, monkeypatch):
     monkeypatch.setattr(executor, "run", lambda sql: (["value"], [[i] for i in range(30)]))
     r = text_to_sql.ask("deal terbesar")
     assert r.interpretation.startswith("Saya membaca ini sebagai: tes") and "bukan hanya yang teratas" in r.interpretation
+
+
+def test_answer_carries_a_rule_based_summary(stub, monkeypatch):
+    sent, replies = stub
+    replies.append(GOOD)
+    monkeypatch.setattr(executor, "run", lambda sql: (["segmen", "n"], [["Enterprise", 10], ["SMB", 4]]))
+    r = text_to_sql.ask("jumlah pelanggan per segmen")
+    assert r.summary == "2 baris. n tertinggi: Enterprise (10); terendah: SMB (4)."

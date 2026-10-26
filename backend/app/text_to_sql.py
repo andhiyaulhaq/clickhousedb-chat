@@ -4,7 +4,7 @@ import time
 
 import httpx
 
-from app import config, executor, guards, interpret, meta, shaping, validator
+from app import config, executor, guards, interpret, meta, shaping, summary, validator
 from app.schemas import AskResponse
 
 UNANSWERABLE = "Pertanyaan ini tidak bisa dijawab dari data yang tersedia."
@@ -53,8 +53,10 @@ def ask(question: str) -> AskResponse:
             columns, rows = timed("execute", lambda: executor.run(validator.validate(sql)))
             rows = shaping.mask(rows)
             line = timed("interpret", interpret.interpret, question, sql)
-            note = interpret.shape_note(sql, len(rows), interpret.is_english(question))
+            english = interpret.is_english(question)
+            note = interpret.shape_note(sql, len(rows), english)
             return AskResponse(sql=sql, interpretation=" ".join(filter(None, [line, note])) or None, columns=columns, rows=rows, chart=shaping.pick_chart(columns, rows),
+                               summary=summary.summarize(columns, rows, english),
                                attempts=attempts, trace=trace, timing=timing)
         except validator.Unanswerable as e:
             trace.append({"sql": sql, "error": str(e)})

@@ -21,7 +21,7 @@ def mask(rows: list[list]) -> list[list]:
     return [[_mask(v) for v in row] for row in rows]
 
 
-def _kind(values) -> str:
+def kind(values) -> str:
     vs = [v for v in values if v is not None]
     if vs and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in vs):
         return "number"
@@ -34,7 +34,7 @@ def pick_chart(columns: list[str], rows: list[list]) -> Chart | None:
     """None means table only. First column is the x axis, every other column must be a number."""
     if not rows:
         return None
-    kinds = [_kind(c) for c in zip(*rows)]
+    kinds = [kind(c) for c in zip(*rows)]
     if len(rows) == 1 and kinds == ["number"]:
         return Chart(type="stat", y=columns)
     if len(rows) < 2 or len(columns) < 2 or set(kinds[1:]) != {"number"}:
