@@ -4,6 +4,7 @@ No model. An earlier version asked a small instruct model to paraphrase the SQL 
 restated the question, was misleading in 2 of the first 10 real answers and cost 4 to 6 s of an 11 s answer, so it was removed.
 What stayed are the checks that cannot be wrong because they read the SQL and nothing else.
 """
+import calendar
 import re
 from datetime import date, timedelta
 
@@ -178,7 +179,63 @@ def _in_progress_note(labels: list, sql: str, english: bool) -> str:
     return f"(The last period, {when}, is still in progress, so its value is not final.)" if english else f"(Periode terakhir, {when}, masih berjalan, jadi nilainya belum final.)"
 
 
-def caveats(sql: str, n_rows: int, english: bool, labels: list | None = None) -> str | None:
-    """labels: the first column of a date series, for the unfinished-period note."""
-    parts = [date_basis(sql, english), shape_note(sql, n_rows, english), _in_progress_note(labels, sql, english) if labels else ""]
+# "1 tahun terakhir" per month is the last 12 whole months, not a window that starts mid-month and ends in the month in progress
+_GRANULARITY = ("Week", "Month", "Quarter", "Year")  # the finest grouping function in the SQL decides
+_ANCHOR = re.compile(
+    r"(?P<col>[A-Za-z_][\w.]*)\s*>=\s*(?:subtract(?P<unit>Years|Quarters|Months|Weeks|Days)\(\s*(?:now|today)\(\)\s*,\s*(?P<n>\d+)\s*\)"
+    r"|(?:now|today)\(\)\s*-\s*INTERVAL\s+(?P<n2>\d+)\s+(?P<unit2>YEAR|QUARTER|MONTH|WEEK|DAY)S?)", re.I)
+_UNITS = {"YEAR": "Years", "QUARTER": "Quarters", "MONTH": "Months", "WEEK": "Weeks", "DAY": "Days"}
+# which windows can be made of whole periods: "6 minggu terakhir" per month cannot, and days never can
+_ALIGNABLE = {"Month": {"Years", "Quarters", "Months"}, "Week": {"Years", "Quarters", "Months", "Weeks"}, "Quarter": {"Years", "Quarters"}, "Year": {"Years"}}
+
+
+def _shift_months(d: date, k: int) -> date:
+    y, m = divmod(d.year * 12 + d.month - 1 + k, 12)
+    return date(y, m + 1, min(d.day, calendar.monthrange(y, m + 1)[1]))
+
+
+def _period_start(d: date, gran: str) -> date:
+    if gran == "Week":
+        return d - timedelta(days=d.weekday())
+    return date(d.year, {"Month": d.month, "Quarter": 3 * ((d.month - 1) // 3) + 1, "Year": 1}[gran], 1)
+
+
+def align_window(sql: str, now: date) -> tuple[str, dict | None]:
+    """Rewrite `col >= subtractMonths(now(), 12)` over monthly (or weekly, quarterly, yearly) groups into whole periods ending before the
+    current one: `col >= toStartOfMonth(subtractMonths(today(), 12)) AND col < toStartOfMonth(today())`. Returns the SQL and the first and last
+    period it covers, or the SQL unchanged and None. A window that already has an upper bound, or a unit that cannot make whole periods, is left alone."""
+    gran = next((g for g in _GRANULARITY if re.search(rf"toStartOf{g}\(", sql, re.I)), None)
+    if gran is None:
+        return sql, None
+    mode, found = ", 1" if gran == "Week" else "", []
+
+    def fix(m):
+        unit, n, col = m["unit"] or _UNITS[m["unit2"].upper()], int(m["n"] or m["n2"]), m["col"]
+        if unit not in _ALIGNABLE[gran] or re.search(re.escape(col) + r"\s*<", sql):
+            return m.group(0)
+        found.append((unit, n))
+        return f"{col} >= toStartOf{gran}(subtract{unit}(today(), {n}){mode}) AND {col} < toStartOf{gran}(today(){mode})"
+
+    new = _ANCHOR.sub(fix, sql)
+    if not found:
+        return sql, None
+    unit, n = found[0]
+    back = now - timedelta(days=7 * n) if unit == "Weeks" else _shift_months(now, -n * {"Years": 12, "Quarters": 3, "Months": 1}[unit])
+    current = _period_start(now, gran)
+    last = {"Week": current - timedelta(days=7), "Month": _shift_months(current, -1), "Quarter": _shift_months(current, -3), "Year": date(now.year - 1, 1, 1)}[gran]
+    return new, {"start": _period_start(back, gran).isoformat(), "end": last.isoformat()}
+
+
+def window_note(window: dict, sql: str, english: bool) -> str:
+    fmt = labeler([window["start"], window["end"]], sql, english)
+    a, b = fmt(window["start"]), fmt(window["end"])
+    if english:
+        return f"(Time range adjusted to whole periods: {a} to {b}.)" if a != b else f"(Time range adjusted to a whole period: {a}.)"
+    return f"(Rentang waktu disesuaikan ke periode penuh: {a} sampai {b}.)" if a != b else f"(Rentang waktu disesuaikan ke periode penuh: {a}.)"
+
+
+def caveats(sql: str, n_rows: int, english: bool, labels: list | None = None, window: dict | None = None) -> str | None:
+    """labels: the first column of a date series, for the unfinished-period note. window: what align_window returned."""
+    parts = [window_note(window, sql, english) if window else "", date_basis(sql, english), shape_note(sql, n_rows, english),
+             _in_progress_note(labels, sql, english) if labels else ""]
     return " ".join(filter(None, parts)) or None

@@ -32,5 +32,6 @@ class AskResponse(BaseModel):
     error: str | None = None  # user-facing, Indonesian; sql is still returned so the query can be inspected
     attempts: int = 0  # how many times the model was asked to repair the SQL
     trace: list[dict] = Field(default_factory=list, exclude=True)  # every failed SQL attempt and why, for the query log only
+    rewritten_from: str | None = Field(default=None, exclude=True)  # the model's SQL when its time window was aligned to whole periods; for the query log
     timing: dict = Field(default_factory=dict, exclude=True)  # seconds spent in generate / execute, for the query log
     refusal: str | None = Field(default=None, exclude=True)  # why the input guard refused; for the query log, never sent to the client

@@ -4,7 +4,10 @@ from pathlib import Path
 import httpx
 
 from app import config, text_to_sql
-from app.notes import caveats, date_basis, is_english, partial_period, shape_note, totals_misleading
+from datetime import date
+
+from app import notes
+from app.notes import align_window, caveats, date_basis, is_english, partial_period, shape_note, totals_misleading, window_note
 
 GOLD = Path(__file__).resolve().parents[2] / "data" / "gold"
 
@@ -88,3 +91,48 @@ def test_totals_are_misleading_for_a_top_n_and_for_overlapping_groups():
     assert totals_misleading("SELECT r.name, sum(d.value) AS t FROM deals AS d FINAL GROUP BY r.name ORDER BY t DESC LIMIT 5")
     assert totals_misleading("SELECT p, sum(d.value) FROM deals AS d FINAL ARRAY JOIN d.products_involved AS p GROUP BY p")
     assert not totals_misleading("SELECT c.segment, count() FROM customers AS c FINAL GROUP BY c.segment")
+
+
+NOW = date(2026, 10, 26)  # a Monday
+WINDOWED = "SELECT toStartOf{g}(x.d{mode}) AS p, count() FROM t AS x FINAL WHERE x.d >= {start} GROUP BY p"
+
+
+def windowed(g, start, mode=""):
+    return WINDOWED.format(g=g, start=start, mode=mode)
+
+
+def test_a_rolling_window_becomes_whole_periods():
+    sql, window = align_window(windowed("Month", "subtractYears(now(), 1)"), NOW)
+    assert "x.d >= toStartOfMonth(subtractYears(today(), 1)) AND x.d < toStartOfMonth(today())" in sql
+    assert window == {"start": "2025-10-01", "end": "2026-09-01"}  # twelve months: October 2025 to September 2026
+    assert align_window(windowed("Month", "subtractMonths(now(), 6)"), NOW)[1] == {"start": "2026-04-01", "end": "2026-09-01"}
+    assert align_window(windowed("Month", "now() - INTERVAL 1 YEAR"), NOW)[1] == {"start": "2025-10-01", "end": "2026-09-01"}
+    assert align_window(windowed("Quarter", "subtractYears(today(), 1)"), NOW)[1] == {"start": "2025-10-01", "end": "2026-07-01"}  # Q4 2025 to Q3 2026
+    sql, window = align_window(windowed("Week", "subtractMonths(now(), 3)", ", 1"), NOW)
+    assert "x.d >= toStartOfWeek(subtractMonths(today(), 3), 1) AND x.d < toStartOfWeek(today(), 1)" in sql
+    assert window == {"start": "2026-07-20", "end": "2026-10-19"}  # the week of 19 October is the last finished one
+    assert align_window(windowed("Week", "subtractWeeks(now(), 8)", ", 1"), NOW)[1] == {"start": "2026-08-31", "end": "2026-10-19"}
+
+
+def test_windows_that_are_already_whole_or_cannot_be_are_left_alone():
+    for sql in (
+        windowed("Month", "toStartOfYear(subtractYears(today(), 1))") + " AND x.d < toStartOfYear(today())",  # aligned, has an upper bound
+        windowed("Month", "subtractYears(now(), 1)") + " AND x.d < today()",  # the model already bounded it
+        windowed("Month", "subtractDays(now(), 90)"),  # days cannot make whole months
+        windowed("Month", "subtractWeeks(now(), 6)"),
+        windowed("Quarter", "subtractMonths(now(), 6)"),
+        windowed("Year", "subtractMonths(now(), 18)"),
+        "SELECT count() FROM t AS x FINAL WHERE x.d >= subtractYears(now(), 1)",  # not grouped by a period
+        "SELECT toStartOfDay(x.d) AS p, count() FROM t AS x FINAL WHERE x.d >= subtractDays(now(), 7) GROUP BY p",  # last 7 days per day
+    ):
+        assert align_window(sql, NOW) == (sql, None), sql
+
+
+def test_the_window_note_names_the_range():
+    month = windowed("Month", "subtractYears(now(), 1)")
+    assert window_note({"start": "2025-10-01", "end": "2026-09-01"}, month, False) == "(Rentang waktu disesuaikan ke periode penuh: Oktober 2025 sampai September 2026.)"
+    assert window_note({"start": "2025-10-01", "end": "2026-09-01"}, month, True) == "(Time range adjusted to whole periods: October 2025 to September 2026.)"
+    assert window_note({"start": "2026-09-01", "end": "2026-09-01"}, month, False) == "(Rentang waktu disesuaikan ke periode penuh: September 2026.)"  # "1 bulan terakhir"
+    sql, window = align_window(month, NOW)
+    both = caveats(sql, 12, False, ["2025-10-01", "2026-09-01"], window)
+    assert both.startswith("(Rentang waktu disesuaikan") and "belum penuh" not in both and "masih berjalan" not in both  # one note, not three

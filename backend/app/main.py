@@ -26,7 +26,7 @@ def log(question: str, r: AskResponse | None, secs: float, exc: Exception | None
         resp = r.model_dump() | {"row_count": len(r.rows), "rows": r.rows[:config.LOG_ROWS]}
         resp.pop("display_short")
         resp["display"] = {k: v[:config.LOG_ROWS] for k, v in r.display.items()}
-        entry |= {"refusal": r.refusal, "timing": r.timing, "trace": r.trace, "response": resp}
+        entry |= {"refusal": r.refusal, "rewritten_from": r.rewritten_from, "timing": r.timing, "trace": r.trace, "response": resp}
     _append(entry)
 
 

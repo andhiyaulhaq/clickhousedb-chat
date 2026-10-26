@@ -45,8 +45,18 @@ def ask(question: str) -> AskResponse:
         finally:
             timing[stage] = round(timing.get(stage, 0) + time.perf_counter() - t0, 1)
 
+    window = original = None
+
+    def draft(messages):
+        """The model's SQL, with a rolling window turned into whole periods (visible: the SQL shown is what ran, and a note says so)."""
+        nonlocal window, original
+        raw = timed("generate", generate, messages)
+        sql, window = notes.align_window(raw, notes.today())
+        original = raw if window else None
+        return sql
+
     messages = [{"role": "user", "content": question}]
-    sql = timed("generate", generate, messages)
+    sql = draft(messages)
     attempts, trace = 0, []
     while True:
         try:
@@ -55,7 +65,8 @@ def ask(question: str) -> AskResponse:
             english = notes.is_english(question)
             found = summary.facts(columns, rows, english, question, sql)
             names, short_names = summary.period_labels(columns, rows, sql, english)
-            return AskResponse(sql=sql, interpretation=notes.caveats(sql, len(rows), english, [r[0] for r in rows] if rows and shaping.kind([r[0] for r in rows]) == "date" else None), columns=columns, rows=rows, display=names, display_short=short_names,
+            return AskResponse(sql=sql, interpretation=notes.caveats(sql, len(rows), english, [r[0] for r in rows] if rows and shaping.kind([r[0] for r in rows]) == "date" else None, window),
+                               rewritten_from=original, columns=columns, rows=rows, display=names, display_short=short_names,
                                chart=shaping.pick_chart(columns, rows),
                                summary=summary.summarize(columns, rows, english, sql),
                                summary_id=narrate.register(question, found) if found and config.SUMMARY_MODEL else None,
@@ -69,6 +80,6 @@ def ask(question: str) -> AskResponse:
         if attempts >= config.MAX_RETRIES:
             return AskResponse(sql=sql, error=f"Query gagal setelah {attempts} perbaikan: {reason}", attempts=attempts, trace=trace, timing=timing)
         attempts += 1
-        messages += [{"role": "assistant", "content": sql},
+        messages += [{"role": "assistant", "content": original or sql},
                      {"role": "user", "content": f"SQL itu gagal: {reason}\nPerbaiki SQL-nya. Output only SQL."}]
-        sql = timed("generate", generate, messages)
+        sql = draft(messages)

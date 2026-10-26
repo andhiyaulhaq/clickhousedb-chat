@@ -172,3 +172,31 @@ def test_answer_names_the_period_columns_and_the_log_cuts_them(stub, tmp_path, m
     assert body["rows"][0][0] == "2025-01-01"  # the data itself is untouched
     entry = json.loads(config.LOG_PATH.read_text(encoding="utf-8"))
     assert entry["response"]["display"] == {"bulan": ["Januari 2025", "Februari 2025"]} and "display_short" not in entry["response"]
+
+
+ROLLING_SQL = ("SELECT toStartOfMonth(d.closed_date) AS bulan, sum(d.value) AS total_omset FROM deals AS d FINAL "
+               "WHERE d.stage = 'won' AND d.closed_date >= subtractYears(now(), 1) GROUP BY bulan ORDER BY bulan")
+
+
+def test_a_rolling_window_runs_as_whole_periods_and_says_so(stub, tmp_path, monkeypatch):
+    from datetime import date
+    sent, replies = stub
+    replies.append(ROLLING_SQL)
+    ran = []
+    monkeypatch.setattr(config, "LOG_PATH", tmp_path / "q.jsonl")
+    monkeypatch.setattr(text_to_sql.notes, "today", lambda: date(2026, 10, 26))
+    monkeypatch.setattr(executor, "run", lambda sql: (ran.append(sql), (["bulan", "total_omset"], [[f"2025-{m:02d}-01", float(m)] for m in range(10, 13)]))[1])
+    body = TestClient(app).post("/ask", json={"question": "omset bulanan 1 tahun terakhir"}).json()
+    assert "toStartOfMonth(subtractYears(today(), 1)) AND d.closed_date < toStartOfMonth(today())" in body["sql"] == ran[0].rsplit(" LIMIT", 1)[0]  # what ran is what is shown
+    assert "Rentang waktu disesuaikan ke periode penuh: Oktober 2025 sampai September 2026." in body["interpretation"]
+    assert "belum penuh" not in body["interpretation"] and "rewritten_from" not in body
+    entry = json.loads(config.LOG_PATH.read_text(encoding="utf-8"))
+    assert entry["rewritten_from"] == ROLLING_SQL  # the log keeps what the model wrote
+
+
+def test_a_repair_shows_the_model_its_own_sql_not_the_rewritten_one(stub, monkeypatch):
+    sent, replies = stub
+    bad_rolling = "SELECT toStartOfMonth(t.created_at) AS b, rep_id FROM support_tickets AS t FINAL WHERE t.created_at >= subtractYears(now(), 1) GROUP BY b"
+    replies.extend([bad_rolling, GOOD])
+    text_to_sql.ask("tiket bulanan 1 tahun terakhir")
+    assert sent[1][1] == bad_rolling  # the assistant turn is what the model wrote, not what the app ran
