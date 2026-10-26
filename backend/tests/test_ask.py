@@ -69,6 +69,8 @@ def test_api_503_when_backend_down(monkeypatch, tmp_path):
     monkeypatch.setattr(config, "LOG_PATH", tmp_path / "q.jsonl")
     monkeypatch.setattr(text_to_sql, "ask", lambda q: (_ for _ in ()).throw(httpx.ConnectError("down")))
     assert TestClient(app).post("/ask", json={"question": "halo"}).status_code == 503
+    entry = json.loads(config.LOG_PATH.read_text(encoding="utf-8"))
+    assert entry["outcome"] == "unavailable" and entry["exception"].startswith("ConnectError")
 
 
 def test_ask_masks_emails_and_picks_chart(stub, monkeypatch):
@@ -86,8 +88,9 @@ def test_api_logs_each_question(stub, tmp_path, monkeypatch):
     assert TestClient(app).post("/ask", json={"question": "berapa deal?"}).status_code == 200
     text = config.LOG_PATH.read_text(encoding="utf-8")
     entry = json.loads(text)
-    assert (entry["question"], entry["outcome"], entry["sql"], entry["rows"]) == ("berapa deal?", "ok", GOOD, 1)
-    assert "[[1]]" not in text  # no row data in the log
+    assert (entry["question"], entry["outcome"]) == ("berapa deal?", "ok")
+    assert entry["response"]["sql"] == GOOD and entry["response"]["rows"] == [[1]] and entry["response"]["row_count"] == 1
+    assert entry["trace"] == []
 
 
 def test_guard_refuses_before_the_model_is_called(stub, tmp_path, monkeypatch):
@@ -97,3 +100,25 @@ def test_guard_refuses_before_the_model_is_called(stub, tmp_path, monkeypatch):
     assert r.status_code == 200 and r.json()["error"] == text_to_sql.guards.REFUSED
     assert not sent and "refusal" not in r.json()  # no model call, and the reason is not shown to the user
     assert json.loads(config.LOG_PATH.read_text(encoding="utf-8"))["refusal"] == "write"
+
+
+def test_log_keeps_failed_attempts_and_cuts_rows(stub, tmp_path, monkeypatch):
+    sent, replies = stub
+    replies += [BAD, GOOD]
+    monkeypatch.setattr(config, "LOG_PATH", tmp_path / "q.jsonl")
+    monkeypatch.setattr(config, "LOG_ROWS", 2)
+    monkeypatch.setattr(executor, "run", lambda sql: (["n"], [[i] for i in range(5)]) if "support_tickets" not in sql
+                        else (_ for _ in ()).throw(ExecError("Unknown identifier")))
+    TestClient(app).post("/ask", json={"question": "berapa deal?"})
+    entry = json.loads(config.LOG_PATH.read_text(encoding="utf-8"))
+    assert entry["trace"] == [{"sql": BAD, "error": "Unknown identifier"}]
+    assert entry["response"]["attempts"] == 1 and entry["response"]["rows"] == [[0], [1]] and entry["response"]["row_count"] == 5
+
+
+def test_log_keeps_the_reason_for_an_unanswerable_question(stub, tmp_path, monkeypatch):
+    sent, replies = stub
+    replies.append("SELECT t.sales_rep FROM support_tickets AS t FINAL")
+    monkeypatch.setattr(config, "LOG_PATH", tmp_path / "q.jsonl")
+    TestClient(app).post("/ask", json={"question": "tiket per tim sales"})
+    entry = json.loads(config.LOG_PATH.read_text(encoding="utf-8"))
+    assert entry["outcome"] == "unanswerable" and "unknown column" in entry["trace"][0]["error"]

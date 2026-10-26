@@ -33,18 +33,20 @@ def ask(question: str) -> AskResponse:
         return AskResponse(error=guards.REFUSED, refusal=e.reason)
     messages = [{"role": "user", "content": question}]
     sql = generate(messages)
-    attempts = 0
+    attempts, trace = 0, []
     while True:
         try:
             columns, rows = executor.run(validator.validate(sql))
             rows = shaping.mask(rows)
-            return AskResponse(sql=sql, columns=columns, rows=rows, chart=shaping.pick_chart(columns, rows), attempts=attempts)
-        except validator.Unanswerable:
-            return AskResponse(sql=sql, error=UNANSWERABLE, attempts=attempts)
+            return AskResponse(sql=sql, columns=columns, rows=rows, chart=shaping.pick_chart(columns, rows), attempts=attempts, trace=trace)
+        except validator.Unanswerable as e:
+            trace.append({"sql": sql, "error": str(e)})
+            return AskResponse(sql=sql, error=UNANSWERABLE, attempts=attempts, trace=trace)
         except (validator.Invalid, executor.ExecError) as e:
             reason = str(e)
+            trace.append({"sql": sql, "error": reason})
         if attempts >= config.MAX_RETRIES:
-            return AskResponse(sql=sql, error=f"Query gagal setelah {attempts} perbaikan: {reason}", attempts=attempts)
+            return AskResponse(sql=sql, error=f"Query gagal setelah {attempts} perbaikan: {reason}", attempts=attempts, trace=trace)
         attempts += 1
         messages += [{"role": "assistant", "content": sql},
                      {"role": "user", "content": f"SQL itu gagal: {reason}\nPerbaiki SQL-nya. Output only SQL."}]
