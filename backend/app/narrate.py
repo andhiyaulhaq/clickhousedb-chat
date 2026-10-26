@@ -28,11 +28,11 @@ PACKS = {
             ("Pertanyaan: omset per produk\nFAKTA:\n- jumlah baris: 3\n- total omset: tertinggi produk A (50 juta); terendah produk C (20 juta)\n"
              "- nilai per produk: A (50 juta), B (40 juta), C (20 juta)\n- jumlah seluruh baris untuk total omset: 110 juta\n- A menyumbang 45% dari total",
              "Produk A menghasilkan omset terbesar, yaitu 50 juta atau 45% dari total 110 juta. Produk C paling rendah dengan 20 juta."),
-            ("Pertanyaan: omset per bulan tahun lalu\nFAKTA:\n- jumlah baris: 4\n- total omset: tertinggi bulan 2025-03-01 (33 juta); terendah bulan 2025-01-01 (18 juta)\n"
-             "- nilai per bulan: 2025-01-01 (18 juta), 2025-02-01 (21 juta), 2025-03-01 (33 juta), 2025-04-01 (20 juta)\n"
-             "- jumlah seluruh baris untuk total omset: 92 juta\n- 2025-03-01 menyumbang 36% dari total\n- total omset dari 2025-01-01 ke 2025-04-01: naik 11%",
-             "Omset bulanan tertinggi terjadi pada 2025-03-01 sebesar 33 juta, dan terendah pada 2025-01-01 sebesar 18 juta. "
-             "Dari 2025-01-01 ke 2025-04-01 omset naik 11%, dengan total 92 juta sepanjang periode."),
+            ("Pertanyaan: omset per bulan tahun lalu\nFAKTA:\n- jumlah baris: 4\n- total omset: tertinggi bulan Maret 2025 (33 juta); terendah bulan Januari 2025 (18 juta)\n"
+             "- nilai per bulan: Januari 2025 (18 juta), Februari 2025 (21 juta), Maret 2025 (33 juta), April 2025 (20 juta)\n"
+             "- jumlah seluruh baris untuk total omset: 92 juta\n- Maret 2025 menyumbang 36% dari total\n- total omset dari Januari 2025 ke April 2025: naik 11%",
+             "Omset bulanan tertinggi terjadi pada Maret 2025 sebesar 33 juta, dan terendah pada Januari 2025 sebesar 18 juta. "
+             "Dari Januari 2025 ke April 2025 omset naik 11%, dengan total 92 juta sepanjang periode."),
         ],
     ),
     "en": (
@@ -45,11 +45,11 @@ PACKS = {
             ("Question: revenue per product\nFACTS:\n- number of rows: 3\n- total revenue: highest product A (50 million); lowest product C (20 million)\n"
              "- values per product: A (50 million), B (40 million), C (20 million)\n- sum over all rows of total revenue: 110 million\n- A accounts for 45% of the total",
              "Product A earns the most, 50 million, which is 45% of the 110 million total. Product C is the lowest at 20 million."),
-            ("Question: revenue per month last year\nFACTS:\n- number of rows: 4\n- total revenue: highest month 2025-03-01 (33 million); lowest month 2025-01-01 (18 million)\n"
-             "- values per month: 2025-01-01 (18 million), 2025-02-01 (21 million), 2025-03-01 (33 million), 2025-04-01 (20 million)\n"
-             "- sum over all rows of total revenue: 92 million\n- 2025-03-01 accounts for 36% of the total\n- total revenue from 2025-01-01 to 2025-04-01: rose 11%",
-             "Monthly revenue peaked on 2025-03-01 at 33 million and was lowest on 2025-01-01 at 18 million. "
-             "From 2025-01-01 to 2025-04-01 revenue rose 11%, for a total of 92 million over the period."),
+            ("Question: revenue per month last year\nFACTS:\n- number of rows: 4\n- total revenue: highest month March 2025 (33 million); lowest month January 2025 (18 million)\n"
+             "- values per month: January 2025 (18 million), February 2025 (21 million), March 2025 (33 million), April 2025 (20 million)\n"
+             "- sum over all rows of total revenue: 92 million\n- March 2025 accounts for 36% of the total\n- total revenue from January 2025 to April 2025: rose 11%",
+             "Monthly revenue peaked on March 2025 at 33 million and was lowest on January 2025 at 18 million. "
+             "From January 2025 to April 2025 revenue rose 11%, for a total of 92 million over the period."),
         ],
     ),
 }

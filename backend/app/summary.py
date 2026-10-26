@@ -7,6 +7,7 @@ None when there is nothing useful to add: a single value, a plain list or a flat
 """
 import re
 from dataclasses import dataclass, field
+from datetime import date
 
 from app.notes import partial_period, totals_misleading
 from app.shaping import kind
@@ -31,6 +32,63 @@ _NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
 def number_tokens(text: str) -> set[str]:
     """Every number in a text, with leading zeros dropped from whole numbers (a date's '03' is the model's '3')."""
     return {(t.lstrip("0") or "0") if t.isdigit() else t for t in _NUMBER.findall(text)}
+
+
+_MONTHS = {
+    False: ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"],
+    True: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+}
+
+
+def _parse(label) -> date | None:
+    m = re.match(r"(\d{4})-(\d{2})(?:-(\d{2}))?(?: (\d{2}:\d{2}:\d{2}))?$", str(label))
+    if m is None or m[4] not in (None, "00:00:00"):  # an hourly series has no label better than the timestamp
+        return None
+    try:
+        return date(int(m[1]), int(m[2]), int(m[3] or 1))
+    except ValueError:
+        return None
+
+
+def period_kind(labels: list, sql: str = "") -> str | None:
+    """month, quarter, year, week or day, from the labels (and the grouping function in the SQL when the labels are ambiguous)."""
+    ds = [_parse(l) for l in labels]
+    if not ds or None in ds:
+        return None
+    ds, low = sorted(set(ds)), sql.lower()
+    if all(d.day == 1 for d in ds):
+        if all(d.month == 1 for d in ds) and "tostartofmonth" not in low:
+            return "year"
+        if all(d.month in (1, 4, 7, 10) for d in ds):
+            if "tostartofquarter" in low:
+                return "quarter"
+            months = [d.year * 12 + d.month for d in ds]
+            if "tostartofmonth" not in low and len(ds) >= 2 and all((b - a) % 3 == 0 for a, b in zip(months, months[1:])):
+                return "quarter"
+        return "month"
+    same_weekday = len({d.weekday() for d in ds}) == 1
+    if same_weekday and ("tostartofweek" in low or "tomonday" in low or (len(ds) >= 2 and all((b - a).days % 7 == 0 for a, b in zip(ds, ds[1:])))):
+        return "week"
+    return "day"
+
+
+def _labeler(labels: list, sql: str, english: bool):
+    """2026-07-01 is shown as Juli 2026 for monthly data, Q3 2026 for quarterly, 2026 for yearly, and so on. A label that is not a date stays as is."""
+    kind_, names = period_kind(labels, sql), _MONTHS[english]
+
+    def fmt(label):
+        d = _parse(label)
+        if d is None or kind_ is None:
+            return label
+        if kind_ == "month":
+            return f"{names[d.month - 1]} {d.year}"
+        if kind_ == "quarter":
+            return f"Q{(d.month - 1) // 3 + 1} {d.year}"
+        if kind_ == "year":
+            return str(d.year)
+        when = f"{d.day} {names[d.month - 1]} {d.year}"
+        return (f"week of {when}" if english else f"minggu {when}") if kind_ == "week" else when
+    return fmt
 
 
 def _extract(columns: list[str], rows: list[list], trim: bool = False):
@@ -62,14 +120,15 @@ def summarize(columns: list[str], rows: list[list], english: bool = False, sql: 
     if found is None:
         return None
     series, label, metric, pairs, core = found
+    L = _labeler([p[0] for p in pairs], sql, english) if series else (lambda x: x)
     (hl, hv), (ll, lv) = max(core, key=lambda p: p[1]), min(core, key=lambda p: p[1])
     name, hi, lo = columns[metric].replace("_", " "), _num(hv, english), _num(lv, english)
     left_out = core is not pairs  # the partial first and last period
     if english:
-        return (f"{len(rows)} periods. {name}: highest on {hl} ({hi}), lowest on {ll} ({lo})." if series
-                else f"{len(rows)} rows. {name}: highest {hl} ({hi}), lowest {ll} ({lo}).") + (" (First and last period left out: partial.)" if left_out else "")
-    return (f"{len(rows)} periode. {name}: tertinggi pada {hl} ({hi}), terendah pada {ll} ({lo})." if series
-            else f"{len(rows)} baris. {name}: tertinggi {hl} ({hi}), terendah {ll} ({lo}).") + (" (Periode pertama dan terakhir tidak dihitung: belum penuh.)" if left_out else "")
+        return (f"{len(rows)} periods. {name}: highest on {L(hl)} ({hi}), lowest on {L(ll)} ({lo})." if series
+                else f"{len(rows)} rows. {name}: highest {L(hl)} ({hi}), lowest {L(ll)} ({lo}).") + (" (First and last period left out: partial.)" if left_out else "")
+    return (f"{len(rows)} periode. {name}: tertinggi pada {L(hl)} ({hi}), terendah pada {L(ll)} ({lo})." if series
+            else f"{len(rows)} baris. {name}: tertinggi {L(hl)} ({hi}), terendah {L(ll)} ({lo}).") + (" (Periode pertama dan terakhir tidak dihitung: belum penuh.)" if left_out else "")
 
 
 # A column that can be added up. Rates, averages and "the largest X per row" cannot, and neither can running totals.
@@ -91,6 +150,7 @@ def facts(columns: list[str], rows: list[list], english: bool = False, question:
     if found is None:
         return None
     series, label, metric, pairs, core = found
+    L = _labeler([p[0] for p in pairs], sql, english) if series else (lambda x: x)
     name, n = columns[metric].replace("_", " "), len(rows)
     (hl, hv), (ll, lv) = max(core, key=lambda p: p[1]), min(core, key=lambda p: p[1])
     f = lambda v: _num(v, english)
@@ -106,16 +166,16 @@ def facts(columns: list[str], rows: list[list], english: bool = False, question:
     own(f(lv), ll)
     lines = [f"number of rows: {n}" if en else f"jumlah baris: {n}",
              # the label column is named: "New Logo #870" is a deal title, and without that the model called it a sales rep
-             f"{name}: highest {columns[label]} {hl} ({f(hv)}); lowest {columns[label]} {ll} ({f(lv)})" if en
-             else f"{name}: tertinggi {columns[label]} {hl} ({f(hv)}); terendah {columns[label]} {ll} ({f(lv)})"]
+             f"{name}: highest {columns[label]} {L(hl)} ({f(hv)}); lowest {columns[label]} {L(ll)} ({f(lv)})" if en
+             else f"{name}: tertinggi {columns[label]} {L(hl)} ({f(hv)}); terendah {columns[label]} {L(ll)} ({f(lv)})"]
     if core is not pairs:  # "1 tahun terakhir" starts mid-month: the model called the 6-day October the lowest month
         first, last = sorted(pairs, key=lambda p: p[0])[0][0], sorted(pairs, key=lambda p: p[0])[-1][0]
-        lines.append(f"the first period ({first}) and the last ({last}) are partial, so they are not counted as highest, lowest or the start or end of a change" if en
-                     else f"periode pertama ({first}) dan terakhir ({last}) belum penuh, jadi tidak dihitung sebagai tertinggi, terendah, atau awal dan akhir perubahan")
+        lines.append(f"the first period ({L(first)}) and the last ({L(last)}) are partial, so they are not counted as highest, lowest or the start or end of a change" if en
+                     else f"periode pertama ({L(first)}) dan terakhir ({L(last)}) belum penuh, jadi tidak dihitung sebagai tertinggi, terendah, atau awal dan akhir perubahan")
     if n <= ALL_VALUES:
         shown = sorted(pairs, key=lambda p: p[0] if series else -p[1])
         lines.append(f"values per {columns[label]}: " if en else f"nilai per {columns[label]}: ")
-        lines[-1] += ", ".join(f"{l} ({f(v)})" for l, v in shown)
+        lines[-1] += ", ".join(f"{L(l)} ({f(v)})" for l, v in shown)
         for l, v in shown:
             own(f(v), l)
     total = sum(p[1] for p in pairs)
@@ -125,7 +185,7 @@ def facts(columns: list[str], rows: list[list], english: bool = False, question:
         lines.append(f"sum over all rows of {name}: {f(total)}" if en else f"jumlah seluruh baris untuk {name}: {f(total)}")
         share = hv / total * 100
         own(f"{share:.0f}", hl)
-        lines.append(f"{hl} accounts for {share:.0f}% of the total" if en else f"{hl} menyumbang {share:.0f}% dari total")
+        lines.append(f"{L(hl)} accounts for {share:.0f}% of the total" if en else f"{L(hl)} menyumbang {share:.0f}% dari total")
     trend = None
     if series:
         ordered = sorted(core, key=lambda p: p[0])
@@ -134,6 +194,6 @@ def facts(columns: list[str], rows: list[list], english: bool = False, question:
             pct = (ev - fv) / abs(fv) * 100
             trend = "up" if pct > 0 else "down"
             word = ("rose" if pct > 0 else "fell") if en else ("naik" if pct > 0 else "turun")
-            lines.append(f"{name} from {fl} to {el}: {word} {abs(pct):.0f}%" if en else f"{name} dari {fl} ke {el}: {word} {abs(pct):.0f}%")
+            lines.append(f"{name} from {L(fl)} to {L(el)}: {word} {abs(pct):.0f}%" if en else f"{name} dari {L(fl)} ke {L(el)}: {word} {abs(pct):.0f}%")
     owners.pop(str(n), None)  # the row count is not about any one item
     return Facts(lines, trend, en, number_tokens(" ".join(lines + [question])), owners)

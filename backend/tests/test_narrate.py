@@ -23,11 +23,11 @@ def test_number_tokens_ignore_leading_zeros_and_keep_decimals():
 def test_facts_for_a_series():
     f = make_facts()
     assert f.trend == "up"
-    assert "jumlah baris: 3" in f.lines and "total omset: tertinggi bulan 2025-03-01 (33 juta); terendah bulan 2025-01-01 (18,8 juta)" in f.lines
+    assert "jumlah baris: 3" in f.lines and "total omset: tertinggi bulan Maret 2025 (33 juta); terendah bulan Januari 2025 (18,8 juta)" in f.lines
     assert "jumlah seluruh baris untuk total omset: 73,3 juta" in f.lines  # an additive column gets a total ...
-    assert "2025-03-01 menyumbang 45% dari total" in f.lines
-    assert any(l.startswith("total omset dari 2025-01-01 ke 2025-03-01: naik 76%") for l in f.lines)
-    assert "nilai per bulan: 2025-01-01 (18,8 juta), 2025-02-01 (21,5 juta), 2025-03-01 (33 juta)" in f.lines  # a series in date order
+    assert "Maret 2025 menyumbang 45% dari total" in f.lines
+    assert any(l.startswith("total omset dari Januari 2025 ke Maret 2025: naik 76%") for l in f.lines)
+    assert "nilai per bulan: Januari 2025 (18,8 juta), Februari 2025 (21,5 juta), Maret 2025 (33 juta)" in f.lines  # a series in date order
     assert {"76", "73,3", "18,8", "33", "45"} <= f.allowed and f.owners == {}  # dates are paraphrased ("Maret"), so no owners
 
 
@@ -70,7 +70,7 @@ def test_prompt_contains_only_the_facts_and_a_preview():
     system, ranking, ranking_reply, series, series_reply, user = [m["content"] for m in narrate._messages("omset per bulan", f)]
     assert "bahasa Indonesia" in system and "angka baru" in system and "Produk A menghasilkan" in ranking_reply
     assert "Omset bulanan tertinggi" in series_reply  # a series has its own example: without it the model wrote "omset per bulan adalah 31,3 juta"
-    assert "omset per bulan" in user and "- jumlah baris: 3" in user and "- nilai per bulan: 2025-01-01" in user
+    assert "omset per bulan" in user and "- jumlah baris: 3" in user and "- nilai per bulan: Januari 2025" in user
     assert "|" not in user  # no sample rows: the model echoed them back
 
 
@@ -177,13 +177,13 @@ WINDOW = [["2025-10-01", 4.4e6], ["2025-11-01", 29.3e6], ["2025-12-01", 29.2e6],
 def test_a_partial_first_period_is_not_the_lowest():
     from app.summary import summarize
     s = summarize(["bulan", "total_omset"], WINDOW, False, ROLLING)
-    assert "tertinggi pada 2026-02-01 (31,3 juta), terendah pada 2026-01-01 (26,4 juta)" in s and "4,4 juta" not in s and "tidak dihitung: belum penuh" in s
+    assert "tertinggi pada Februari 2026 (31,3 juta), terendah pada Januari 2026 (26,4 juta)" in s and "4,4 juta" not in s and "tidak dihitung: belum penuh" in s
     f = facts(["bulan", "total_omset"], WINDOW, False, "omset 1 tahun terakhir", ROLLING)
-    assert "tertinggi bulan 2026-02-01 (31,3 juta); terendah bulan 2026-01-01 (26,4 juta)" in " ".join(f.lines)
-    assert any("belum penuh" in l and "2025-10-01" in l and "2026-03-01" in l for l in f.lines)
+    assert "tertinggi bulan Februari 2026 (31,3 juta); terendah bulan Januari 2026 (26,4 juta)" in " ".join(f.lines)
+    assert any("belum penuh" in l and "Oktober 2025" in l and "Maret 2026" in l for l in f.lines)
     assert any(l.startswith("jumlah seluruh baris") for l in f.lines)  # the window total is still a real total
     assert f.trend == "up"  # change from 2025-11 to 2026-02 (29,3 to 31,3 juta), not from the partial October
-    assert "2025-10-01 (4,4 juta)" in " ".join(f.lines)  # the partial value is still listed, with the explanation
+    assert "Oktober 2025 (4,4 juta)" in " ".join(f.lines)  # the partial value is still listed, with the explanation
     # without a rolling window nothing is left out
     assert "4,4 juta" in summarize(["bulan", "total_omset"], WINDOW, False, "")
 
