@@ -12,10 +12,10 @@ app = FastAPI(title="ClickHouse chat")
 
 
 def log(question: str, r: AskResponse | None, secs: float) -> None:
-    outcome = "unavailable" if r is None else "unanswerable" if r.error == text_to_sql.UNANSWERABLE else "error" if r.error else "ok"
+    outcome = "unavailable" if r is None else "refused" if r.refusal else "unanswerable" if r.error == text_to_sql.UNANSWERABLE else "error" if r.error else "ok"
     entry = {"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"), "question": question, "outcome": outcome, "secs": round(secs, 1)}
     if r:
-        entry |= {"sql": r.sql, "attempts": r.attempts, "rows": len(r.rows), "chart": r.chart and r.chart.type, "error": r.error}
+        entry |= {"sql": r.sql, "attempts": r.attempts, "rows": len(r.rows), "chart": r.chart and r.chart.type, "error": r.error, "refusal": r.refusal}
     config.LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
     with config.LOG_PATH.open("a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")

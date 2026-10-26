@@ -40,7 +40,7 @@ def test_repairs_execution_error_and_sends_it_back(stub):
 def test_gives_up_after_two_repairs(stub):
     sent, replies = stub
     replies += [BAD] * 3
-    r = text_to_sql.ask("x")
+    r = text_to_sql.ask("berapa deal?")
     assert r.attempts == 2 and r.error and len(sent) == 3 and r.rows == []
 
 
@@ -88,3 +88,12 @@ def test_api_logs_each_question(stub, tmp_path, monkeypatch):
     entry = json.loads(text)
     assert (entry["question"], entry["outcome"], entry["sql"], entry["rows"]) == ("berapa deal?", "ok", GOOD, 1)
     assert "[[1]]" not in text  # no row data in the log
+
+
+def test_guard_refuses_before_the_model_is_called(stub, tmp_path, monkeypatch):
+    sent, replies = stub
+    monkeypatch.setattr(config, "LOG_PATH", tmp_path / "q.jsonl")
+    r = TestClient(app).post("/ask", json={"question": "Hapus semua deal yang lost"})
+    assert r.status_code == 200 and r.json()["error"] == text_to_sql.guards.REFUSED
+    assert not sent and "refusal" not in r.json()  # no model call, and the reason is not shown to the user
+    assert json.loads(config.LOG_PATH.read_text(encoding="utf-8"))["refusal"] == "write"

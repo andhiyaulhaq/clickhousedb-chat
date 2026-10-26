@@ -1,4 +1,5 @@
 """Second safety layer (the first is the read-only ClickHouse user). See docs/guide.md rule 3."""
+import re
 from pathlib import Path
 
 import sqlglot
@@ -16,11 +17,14 @@ class Unanswerable(Invalid):
     """Unknown table or column: the data cannot answer this. Do not retry."""
 
 
-_DDL = sqlglot.parse(SCHEMA.read_text(encoding="utf-8"), read="clickhouse")
+_SQL = SCHEMA.read_text(encoding="utf-8")
+_DDL = sqlglot.parse(_SQL, read="clickhouse")
 TABLES = {s.this.this.name: {c.name for c in s.this.expressions} for s in _DDL}
 COLUMNS = set().union(*TABLES.values())
 # ReplacingMergeTree tables show duplicate row versions unless read with FINAL
 REPLACING = {s.this.this.name for s in _DDL if "ReplacingMergeTree" in s.sql(dialect="clickhouse")}
+# customers.attributes is a free-form Map, so the model can invent keys (attributes['city']); the real ones are in the schema comment
+ATTR_KEYS = set(re.findall(r"'(\w+)' \(", re.search(r"attributes Map.*?keys: (.*)", _SQL).group(1)))
 
 
 def validate(sql: str, limit: int = MAX_LIMIT) -> str:
@@ -44,6 +48,9 @@ def validate(sql: str, limit: int = MAX_LIMIT) -> str:
         if t.db not in ("", "crm") or t.name not in TABLES:
             raise Unanswerable(f"unknown table: {t.sql(dialect='clickhouse')}")
 
+    if next(tree.find_all(exp.Table), None) is None:  # SELECT 'Good morning', SELECT now(): no data was read
+        raise Unanswerable("query reads no table")
+
     aliases = {a.alias for a in tree.find_all(exp.Alias)}
     aliases |= {a.name for a in tree.find_all(exp.TableAlias)}
     aliases |= {c.name for a in tree.find_all(exp.TableAlias) for c in a.columns}
@@ -62,6 +69,12 @@ def validate(sql: str, limit: int = MAX_LIMIT) -> str:
         # ponytail: unqualified columns and subquery/CTE qualifiers are checked against all tables; resolve scopes properly if misses show up
         elif c.name not in COLUMNS and c.name not in aliases:
             raise Unanswerable(f"unknown column: {c.name}")
+
+    for b in tree.find_all(exp.Bracket):
+        if isinstance(b.this, exp.Column) and b.this.name == "attributes":
+            for k in b.expressions:
+                if isinstance(k, exp.Literal) and k.is_string and k.name not in ATTR_KEYS:
+                    raise Unanswerable(f"unknown attributes key: {k.name}")
 
     for t in tree.find_all(exp.Table):
         if t.name in REPLACING and t.name not in ctes and not isinstance(t.parent, exp.Final):

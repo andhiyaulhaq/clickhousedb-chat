@@ -3,7 +3,7 @@ import re
 
 import httpx
 
-from app import config, executor, shaping, validator
+from app import config, executor, guards, shaping, validator
 from app.schemas import AskResponse
 
 UNANSWERABLE = "Pertanyaan ini tidak bisa dijawab dari data yang tersedia."
@@ -27,6 +27,10 @@ def generate(messages: list[dict]) -> str:
 
 def ask(question: str) -> AskResponse:
     """Retries only repair SQL that fails; they cannot catch SQL that runs and is wrong (docs/guide.md section 3)."""
+    try:
+        question = guards.check(question)
+    except guards.Refused as e:
+        return AskResponse(error=guards.REFUSED, refusal=e.reason)
     messages = [{"role": "user", "content": question}]
     sql = generate(messages)
     attempts = 0

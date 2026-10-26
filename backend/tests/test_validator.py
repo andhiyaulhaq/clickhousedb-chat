@@ -56,3 +56,15 @@ def test_outer_subquery_alias_may_shadow_inner_table_alias():
     validate("SELECT c.total FROM (SELECT c.customer_id, count() AS total FROM customers AS c FINAL GROUP BY c.customer_id) AS c")
     with pytest.raises(Unanswerable):  # a plain table alias is still checked against its own table
         validate("SELECT c.rep_id FROM customers AS c FINAL")
+
+
+def test_query_must_read_a_table():
+    for sql in ("SELECT 'Good morning' AS salam", "SELECT now()", "SELECT 1"):
+        with pytest.raises(Unanswerable):
+            validate(sql)
+
+
+def test_unknown_attributes_key_is_unanswerable():
+    with pytest.raises(Unanswerable):
+        validate("SELECT c.name FROM customers AS c FINAL WHERE c.attributes['city'] = 'Bandung'")
+    assert validate("SELECT c.name FROM customers AS c FINAL WHERE c.attributes['region'] = 'APAC' LIMIT 5")

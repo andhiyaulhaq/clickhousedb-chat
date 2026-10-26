@@ -28,3 +28,4 @@ class AskResponse(BaseModel):
     summary: str | None = None  # filled by summary.py
     error: str | None = None  # user-facing, Indonesian; sql is still returned so the query can be inspected
     attempts: int = 0  # how many times the model was asked to repair the SQL
+    refusal: str | None = Field(default=None, exclude=True)  # why the input guard refused; for the query log, never sent to the client

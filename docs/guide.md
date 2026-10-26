@@ -110,6 +110,7 @@ backend/
 │   ├── text_to_sql.py    # Ollama call, fence strip, validate + execute + repair loop (done)
 │   ├── validator.py      # sqlglot checks, schema whitelist, FINAL lint, LIMIT     (done)
 │   ├── executor.py       # ClickHouse execution as the restricted user             (done)
+│   ├── guards.py         # input checks before the model: noise, injection, write intent, off-topic (done)
 │   ├── shaping.py        # email masking + chart picker                            (done)
 │   └── summary.py        # summary prompt + call
 ├── tests/                # validator (267 gold queries), executor (needs ClickHouse), repair loop (stubbed)
@@ -118,7 +119,7 @@ frontend/                 # Svelte 5 + Vite + Chart.js, pnpm: App (chat), Answer
 clickhouse/schema.sql     # DDL extract: source of the validator whitelist
 clickhouse/app_user.sql   # the restricted `app` user, created by `pipeline.py setup`
 ```
-The rest of the repo (model workspace, data, docs) is mapped in `README.md`. Keep app modules flat until one grows past a few hundred lines; do not pre-create packages for guards that are not built. The eval sets are in `data/gold/`; the adversarial set goes in `data/adversarial.jsonl`.
+The rest of the repo (model workspace, data, docs) is mapped in `README.md`. Keep app modules flat until one grows past a few hundred lines; do not pre-create packages for guards that are not built. The eval sets are in `data/gold/`; the adversarial set is `data/adversarial.jsonl` (run `backend/eval_adversarial.py`).
 
 ---
 
@@ -143,5 +144,5 @@ The rest of the repo (model workspace, data, docs) is mapped in `README.md`. Kee
 4. **`shaping.py`. Done.** Emails masked (`b***@acme.com`), chart picked by rule (stat, line, bar, else table only) and typed as `Chart` in the response. Each `/ask` is also logged to `data/logs/queries.jsonl` (question, SQL, outcome; never rows; git-ignored). Read it for failure modes and retraining data.
 5. **Svelte chat. Done.** Question box, stat/line/bar chart, table, collapsible SQL (with the repair count), error banners. The Vite dev server proxies `/ask` to the backend. No SSE streaming yet: one request, a loading line for the 7 to 10 s; add streaming when the summary model (step 6) makes the wait longer.
 6. **Summary model.** Todo.
-7. **Adversarial eval set;** add a guard only if something gets through. Todo.
+7. **Adversarial eval set and input guard. Done.** `data/adversarial.jsonl` (69 cases: off-topic, write intent, injection, unanswerable, noise, PII, legitimate look-alikes). Baseline 42/69; with `guards.py` (deterministic rules, one generic refusal message, the reason only in the query log) and two validator rules (a query must read a table; `attributes` keys must exist in the schema) it is **66/69**, with 0 false refusals and 0 leaked emails. The rules were written after seeing this set, so it is a development set: take fresh questions from `data/logs/queries.jsonl` for a held-out check. The 3 misses are unanswerable questions (margin, ad cost, payments received) that the model maps onto `deals.value`; keyword rules would only overfit them. If real use shows more of these, the next step is a small classifier on embeddings, not a generative guard SLM. Until then the UI's visible SQL is the mitigation.
 8. **Later:** follow-up question rewriter; new schemas (which need a new fine-tune, see `docs/training.md`).

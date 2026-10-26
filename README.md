@@ -13,6 +13,7 @@ uv run python pipeline.py ask "berapa omset bulan ini?"                  # quest
 cd backend && uv run pytest                # validator (267 gold queries), executor (needs ClickHouse), repair loop
 cd backend && uv run uvicorn app.main:app --port 8000   # POST /ask {"question": "..."}
 cd frontend && pnpm install && pnpm dev    # chat UI on http://localhost:5173 (needs the backend on :8000)
+cd backend && uv run python eval_adversarial.py         # 69 hostile and borderline questions, with an input guard: 66/69
 cd backend && uv run python eval_gold.py holdout        # gold questions through the full pipeline (about 15 min)
 ```
 Seeded dates are relative to the day you run `setup`, so "hari ini / kemarin" return no rows after a few days: re-run `setup`. Only one ClickHouse can hold port 8123; stop any other container first.

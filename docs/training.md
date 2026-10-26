@@ -53,5 +53,6 @@ Execution accuracy: the generated query must return the same **rows** as the ref
 5. Put what Colab produced (Modelfile, executed notebook, GGUF) in `models/<name>/output/` and register it: `cd models/<name>/output && ollama create <name> -f Modelfile`.
 6. `eval <name>` and `eval <name> --set=holdout`. Record the numbers in `docs/model-history.md`.
 7. If the schema changed, also update `clickhouse/schema.sql`, `clickhouse/seed.sql`, `data/gold/` and the validator whitelist. New tables need new training data.
+8. `data/gold/holdout_en.jsonl` is the holdout translated to English (same ids, same SQL). Score it with `cd backend && uv run python eval_gold.py holdout_en`. English is not in the training data yet; see the model README for the gap.
 
 Weights are not in git (`*.gguf`): on another machine, copy the GGUF into its folder or retrain.
