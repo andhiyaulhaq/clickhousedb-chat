@@ -100,3 +100,13 @@ def test_calls_keep_the_model_loaded(monkeypatch):
     interpret.interpret("q", "s")
     text_to_sql.generate([{"role": "user", "content": "q"}])
     assert [s["keep_alive"] for s in sent] == [interpret.config.OLLAMA_KEEP_ALIVE] * 2
+
+
+def test_shape_note_only_for_a_long_descending_ranking_without_limit():
+    ranked = "SELECT c.name, max(d.value) AS m FROM deals AS d FINAL INNER JOIN customers AS c FINAL ON d.customer_id = c.customer_id GROUP BY c.name ORDER BY m DESC"
+    assert "bukan hanya yang teratas" in interpret.shape_note(ranked, 291, False)
+    assert "not just the top ones" in interpret.shape_note(ranked, 291, True)
+    assert interpret.shape_note(ranked, 20, False) == ""  # short enough to read
+    assert interpret.shape_note(ranked + " LIMIT 5", 291, False) == ""  # the user asked for a top N
+    assert interpret.shape_note(ranked.replace("DESC", "ASC"), 291, False) == ""  # time series and alphabetical lists
+    assert interpret.shape_note("SELECT d.value FROM deals AS d FINAL", 291, False) == ""

@@ -144,3 +144,11 @@ def test_log_has_per_stage_timing(stub, tmp_path, monkeypatch):
     monkeypatch.setattr(config, "LOG_PATH", tmp_path / "q.jsonl")
     TestClient(app).post("/ask", json={"question": "berapa deal?"})
     assert set(json.loads(config.LOG_PATH.read_text(encoding="utf-8"))["timing"]) == {"generate", "execute", "interpret"}
+
+
+def test_long_ranking_gets_a_note(stub, monkeypatch):
+    sent, replies = stub
+    replies.append("SELECT d.value FROM deals AS d FINAL ORDER BY d.value DESC")
+    monkeypatch.setattr(executor, "run", lambda sql: (["value"], [[i] for i in range(30)]))
+    r = text_to_sql.ask("deal terbesar")
+    assert r.interpretation.startswith("Saya membaca ini sebagai: tes") and "bukan hanya yang teratas" in r.interpretation

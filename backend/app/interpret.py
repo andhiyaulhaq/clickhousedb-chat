@@ -6,6 +6,8 @@ how it was grouped. A failure here returns None: the answer is still useful with
 import re
 
 import httpx
+import sqlglot
+from sqlglot import exp
 
 from app import config
 
@@ -113,6 +115,24 @@ def date_basis(line: str, sql: str, english: bool) -> str:
     if not used:
         return ""
     return f" (Date basis: {' and '.join(e for _, e in used)}.)" if english else f" (Dasar tanggal: {' dan '.join(i for i, _ in used)}.)"
+
+
+PREVIEW_ROWS = 20  # the UI shows this many rows first
+
+
+def shape_note(sql: str, n_rows: int, english: bool) -> str:
+    """Say so when a ranking (ORDER BY ... DESC) came back whole: \"customer with the largest deal\" returned all 291. Read from the SQL."""
+    if n_rows <= PREVIEW_ROWS:
+        return ""
+    try:
+        tree = sqlglot.parse_one(sql, read="clickhouse")
+    except sqlglot.errors.SqlglotError:
+        return ""
+    order = tree.args.get("order") if isinstance(tree, exp.Select) else None
+    if tree.args.get("limit") is not None or order is None or not order.expressions[0].args.get("desc"):
+        return ""
+    return ("(All matching rows are shown, sorted descending, not just the top ones.)" if english
+            else "(Semua baris yang cocok ditampilkan, diurutkan menurun, bukan hanya yang teratas.)")
 
 
 def raw(question: str, sql: str, model: str | None = None) -> str | None:

@@ -2,6 +2,9 @@
   import Chart from './Chart.svelte'
 
   let { res } = $props()
+  const PREVIEW = 20 // keep in step with PREVIEW_ROWS in backend/app/interpret.py
+  let showAll = $state(false)
+  const shown = $derived(showAll ? res.rows : res.rows.slice(0, PREVIEW))
 
   const fmt = (v) =>
     v === null ? '—' : typeof v === 'number' ? v.toLocaleString('id-ID', { maximumFractionDigits: 2 }) : Array.isArray(v) ? JSON.stringify(v) : v
@@ -24,13 +27,17 @@
     <table>
       <thead><tr>{#each res.columns as c}<th>{c}</th>{/each}</tr></thead>
       <tbody>
-        {#each res.rows as row}
+        {#each shown as row}
           <tr>{#each row as v}<td class:num={typeof v === 'number'}>{fmt(v)}</td>{/each}</tr>
         {/each}
       </tbody>
     </table>
   </div>
-  <p class="meta">{res.rows.length} baris{res.rows.length >= 1000 ? ' (dibatasi 1000)' : ''}</p>
+  <p class="meta">{res.rows.length} baris{res.rows.length >= 1000 ? ' (dibatasi 1000)' : ''}
+    {#if res.rows.length > PREVIEW}
+      · <button class="link" onclick={() => (showAll = !showAll)}>{showAll ? `tampilkan ${PREVIEW} baris pertama` : `tampilkan semua ${res.rows.length} baris`}</button>
+    {/if}
+  </p>
 {:else if !res.error}
   <p class="meta">Tidak ada data yang cocok.</p>
 {/if}
@@ -55,6 +62,7 @@
   tr:nth-child(even) td { background: #fafafa; }
   td.num { text-align: right; }
   .meta { color: #777; font-size: 0.8rem; margin: 0.4rem 0 0; }
+  .link { background: none; border: 0; padding: 0; color: #2457d6; cursor: pointer; font: inherit; text-decoration: underline; }
   details { margin-top: 0.5rem; font-size: 0.85rem; }
   summary { cursor: pointer; color: #555; }
   pre { background: #f5f5f5; padding: 0.6rem; border-radius: 6px; overflow-x: auto; white-space: pre-wrap; }

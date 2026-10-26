@@ -53,7 +53,8 @@ def ask(question: str) -> AskResponse:
             columns, rows = timed("execute", lambda: executor.run(validator.validate(sql)))
             rows = shaping.mask(rows)
             line = timed("interpret", interpret.interpret, question, sql)
-            return AskResponse(sql=sql, interpretation=line, columns=columns, rows=rows, chart=shaping.pick_chart(columns, rows),
+            note = interpret.shape_note(sql, len(rows), interpret.is_english(question))
+            return AskResponse(sql=sql, interpretation=" ".join(filter(None, [line, note])) or None, columns=columns, rows=rows, chart=shaping.pick_chart(columns, rows),
                                attempts=attempts, trace=trace, timing=timing)
         except validator.Unanswerable as e:
             trace.append({"sql": sql, "error": str(e)})
