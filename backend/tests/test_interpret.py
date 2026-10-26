@@ -74,3 +74,29 @@ def test_consistent_drops_lines_that_contradict_the_sql():
 def test_interpret_returns_none_for_an_inconsistent_line(monkeypatch):
     monkeypatch.setattr(httpx, "post", lambda *a, **k: Reply("Saya membaca ini sebagai: deal yang ditutup bulan lalu."))
     assert interpret.interpret("total deal", "SELECT sum(d.value) FROM deals AS d FINAL WHERE d.created_date > today()") is None
+
+
+def test_date_basis_comes_from_the_sql():
+    created = "SELECT count() FROM deals AS d FINAL WHERE d.created_date >= today()"
+    closed = "SELECT sum(d.value) FROM deals AS d FINAL WHERE d.stage = 'won' AND d.closed_date >= today()"
+    assert interpret.date_basis("jumlah deal per bulan.", created, False) == " (Dasar tanggal: tanggal deal dibuat.)"
+    assert interpret.date_basis("omset per bulan.", closed, False) == " (Dasar tanggal: tanggal deal ditutup.)"
+    assert interpret.date_basis("revenue per month.", closed, True) == " (Date basis: deal close date.)"
+    assert interpret.date_basis("deal yang dibuat tahun ini.", created, False) == ""  # the line already says it
+    assert interpret.date_basis("jumlah pelanggan.", "SELECT count() FROM customers AS c FINAL", False) == ""
+    assert interpret.date_basis("x", created.replace("WHERE", "WHERE d.closed_date > 0 AND"), False).count("dan") == 1  # both dates
+
+
+def test_interpret_appends_the_date_basis(monkeypatch):
+    monkeypatch.setattr(httpx, "post", lambda *a, **k: Reply("Saya membaca ini sebagai: jumlah deal per bulan."))
+    sql = "SELECT toStartOfMonth(d.created_date) AS bulan, count() FROM deals AS d FINAL GROUP BY bulan"
+    assert interpret.interpret("deal per bulan", sql) == "Saya membaca ini sebagai: jumlah deal per bulan. (Dasar tanggal: tanggal deal dibuat.)"
+
+
+def test_calls_keep_the_model_loaded(monkeypatch):
+    from app import text_to_sql
+    sent = []
+    monkeypatch.setattr(httpx, "post", lambda url, json, timeout: (sent.append(json), Reply("SELECT 1"))[1])
+    interpret.interpret("q", "s")
+    text_to_sql.generate([{"role": "user", "content": "q"}])
+    assert [s["keep_alive"] for s in sent] == [interpret.config.OLLAMA_KEEP_ALIVE] * 2

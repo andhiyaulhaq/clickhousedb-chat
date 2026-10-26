@@ -102,12 +102,25 @@ def consistent(line: str, sql: str) -> bool:
     return True
 
 
+# deals have two dates, so "last month" is ambiguous; the model often leaves out which one the SQL used
+_DATE_BASIS = (("created_date", r"dibuat|created", "tanggal deal dibuat", "deal creation date"),
+               ("closed_date", r"ditutup|closed|closing", "tanggal deal ditutup", "deal close date"))
+
+
+def date_basis(line: str, sql: str, english: bool) -> str:
+    """A suffix naming the deal date column the SQL uses, unless the line already says so. Derived from the SQL, so it cannot be wrong."""
+    used = [(i, e) for col, seen, i, e in _DATE_BASIS if col in sql.lower() and not re.search(seen, line.lower())]
+    if not used:
+        return ""
+    return f" (Date basis: {' and '.join(e for _, e in used)}.)" if english else f" (Dasar tanggal: {' dan '.join(i for i, _ in used)}.)"
+
+
 def raw(question: str, sql: str, model: str | None = None) -> str | None:
     try:
         r = httpx.post(
             f"{config.OLLAMA_URL}/api/chat",
             json={"model": model or config.SUMMARY_MODEL, "messages": _messages(question, sql), "stream": False,
-                  "options": {"temperature": 0, "num_predict": 100}},
+                  "keep_alive": config.OLLAMA_KEEP_ALIVE, "options": {"temperature": 0, "num_predict": 100}},
             timeout=60,
         )
         r.raise_for_status()
@@ -119,4 +132,6 @@ def raw(question: str, sql: str, model: str | None = None) -> str | None:
 
 def interpret(question: str, sql: str, model: str | None = None) -> str | None:
     line = raw(question, sql, model)
-    return line if line and consistent(line, sql) else None
+    if not line or not consistent(line, sql):
+        return None
+    return line + date_basis(line, sql, is_english(question))

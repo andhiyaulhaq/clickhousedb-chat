@@ -3,6 +3,8 @@ from pathlib import Path
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 SQL_MODEL = os.getenv("SQL_MODEL", "text2sql-3b-v3")
+# Ollama unloads a model after 5 idle minutes; the next question then pays a reload (a 16 s SQL step instead of 7 s in the log)
+OLLAMA_KEEP_ALIVE = os.getenv("OLLAMA_KEEP_ALIVE", "30m")
 SUMMARY_MODEL = os.getenv("SUMMARY_MODEL", "qwen2.5:3b-instruct")  # general instruct model under 3 GB; see backend/compare_interpret.py
 
 CH_URL = os.getenv("CH_URL", "http://localhost:8123/")

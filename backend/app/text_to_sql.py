@@ -19,7 +19,8 @@ def generate(messages: list[dict]) -> str:
     """One model call. Only the conversation is sent: the system prompt lives in the Modelfile."""
     r = httpx.post(
         f"{config.OLLAMA_URL}/api/chat",
-        json={"model": config.SQL_MODEL, "messages": messages, "stream": False, "options": {"temperature": 0}},
+        json={"model": config.SQL_MODEL, "messages": messages, "stream": False, "keep_alive": config.OLLAMA_KEEP_ALIVE,
+              "options": {"temperature": 0}},
         timeout=300,
     )
     r.raise_for_status()
