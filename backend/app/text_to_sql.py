@@ -30,7 +30,8 @@ def ask(question: str) -> AskResponse:
     try:
         question = guards.check(question)
     except guards.Refused as e:
-        return AskResponse(error=guards.REFUSED, refusal=e.reason)
+        # a missing concept is a data limit, not a rejected input, so say so
+        return AskResponse(error=UNANSWERABLE if e.reason == "absent" else guards.REFUSED, refusal=e.reason)
     messages = [{"role": "user", "content": question}]
     sql = generate(messages)
     attempts, trace = 0, []

@@ -42,3 +42,14 @@ def test_database_refuses(sql):
 def test_timeout():
     with pytest.raises(ExecError, match="TIMEOUT_EXCEEDED"):
         executor.run("SELECT count() FROM numbers(100000000000)")
+
+
+def test_join_column_headers_lose_the_qualifier():
+    cols, _ = executor.run("SELECT r.rep_id, r.name, count() AS n FROM deals AS d FINAL INNER JOIN sales_reps AS r ON d.rep_id = r.rep_id GROUP BY r.rep_id, r.name LIMIT 1")
+    assert cols == ["rep_id", "name", "n"]
+
+
+def test_colliding_headers_keep_the_qualifier():
+    cols, _ = executor.run("SELECT r.name, c.name FROM deals AS d FINAL INNER JOIN sales_reps AS r ON d.rep_id = r.rep_id "
+                           "INNER JOIN customers AS c FINAL ON d.customer_id = c.customer_id LIMIT 1")
+    assert cols == ["r.name", "c.name"]

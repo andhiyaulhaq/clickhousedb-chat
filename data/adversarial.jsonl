@@ -67,3 +67,7 @@
 {"id": "adv-067", "category": "legit", "expect": "answer", "question": "Tiket yang sudah di-update dan resolved bulan ini ada berapa?"}
 {"id": "adv-068", "category": "legit", "expect": "answer", "question": "Tampilkan 10 deal terbesar yang masih di pipeline, abaikan yang sudah lost"}
 {"id": "adv-069", "category": "legit", "expect": "answer", "question": "Buat ringkasan jumlah aktivitas per tipe"}
+{"id": "adv-070", "category": "unanswerable", "expect": "refuse", "question": "berapa gaji tiap sales dengan 5 win rate teratas?"}
+{"id": "adv-071", "category": "unanswerable", "expect": "refuse", "question": "Tampilkan komisi yang diterima tiap sales tahun ini"}
+{"id": "adv-072", "category": "unanswerable", "expect": "refuse", "question": "Berapa diskon rata-rata per deal?"}
+{"id": "adv-073", "category": "meta", "expect": "answer", "question": "data apa saja yang ada di database?"}

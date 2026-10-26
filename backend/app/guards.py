@@ -1,7 +1,8 @@
 """Input checks before the model is called (docs/guide.md rule 3). Deterministic and cheap; no model.
 
-check() returns the cleaned question or raises Refused. The user always sees the same generic REFUSED text; the reason
-(noise, injection, write, offtopic) goes only to the query log, so an attacker learns nothing about what was matched.
+check() returns the cleaned question or raises Refused. The user sees one generic REFUSED text whatever rule fired (except "absent",
+which says the data cannot answer it); the reason (noise, injection, write, offtopic, absent) goes only to the query log, so an
+attacker learns nothing about what was matched.
 """
 import re
 import unicodedata
@@ -30,6 +31,11 @@ RULES = [
         _LEAD + r"(?:hapus|ubah|ganti|update|tambah(?:kan)?|masukkan|kosongkan|truncate|drop|delete|remove|insert|modify|rename|grant|revoke|alter)\b"
         r"|" + _LEAD + r"(?:buat|create)(?:kan)?\s+(?:user|pengguna|akun|role|tabel|table|database)"
         r"|\b(?:drop|alter|truncate)\s+(?:table|database|user)\b|\bdelete\s+from\b|\binsert\s+into\b")),
+    # Concepts the CRM schema has no column for. The model otherwise swaps in something else and answers wrongly
+    # ("gaji tiap sales dengan win rate teratas" returned an invented win rate and no salary).
+    ("absent", re.compile(
+        r"\b(?:gaji|upah|salary|margin|laba|profit|alamat|address|telepon|phone|stok|stock|pembayaran|payment|invoice|faktur|tagihan"
+        r"|biaya|nps|survei|karyawan|employees?)\b")),
     ("offtopic", re.compile(
         r"\b(?:terjemah\w*|translate|puisi|pantun|lelucon|joke|resep|cuaca|kurs|python|kode program|apa kabar)\b"
         r"|\bsiapa (?:kamu|anda)\b|\bkamu siapa\b|\bwho are you\b|\bmodel apa\b|^\W*(?:halo|hai|hi|hello)\W*$")),
