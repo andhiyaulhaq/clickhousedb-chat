@@ -2,7 +2,8 @@
   import Chart from 'chart.js/auto'
 
   // chart is the backend's {type: line|bar, x, y} (docs/guide.md rule 6); x and y name result columns
-  let { chart, columns, rows } = $props()
+  // labels: the x axis names from the backend ("Jan 2025"); without them the raw column values are shown
+  let { chart, columns, rows, labels } = $props()
   let canvas
 
   $effect(() => {
@@ -10,7 +11,7 @@
     const c = new Chart(canvas, {
       type: chart.type,
       data: {
-        labels: rows.map((r) => r[col(chart.x)]),
+        labels: labels ?? rows.map((r) => r[col(chart.x)]),
         datasets: chart.y.map((name) => ({ label: name, data: rows.map((r) => r[col(name)]) })),
       },
       options: { maintainAspectRatio: false, plugins: { legend: { display: chart.y.length > 1 } } },

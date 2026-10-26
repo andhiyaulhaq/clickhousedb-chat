@@ -20,8 +20,10 @@
   })
   const shown = $derived(showAll ? res.rows : res.rows.slice(0, PREVIEW))
 
-  const fmt = (v) =>
-    v === null ? '—' : typeof v === 'number' ? v.toLocaleString('id-ID', { maximumFractionDigits: 2 }) : Array.isArray(v) ? JSON.stringify(v) : v
+  // A column shows the same number of decimals in every row: 21.543.295,6 next to 18.754.300,28 reads as two kinds of number.
+  const decimals = $derived(res.columns.map((_, c) => (res.rows.some((r) => typeof r[c] === 'number' && !Number.isInteger(r[c])) ? 2 : 0)))
+  const fmt = (v, dec = 2) =>
+    v === null ? '—' : typeof v === 'number' ? v.toLocaleString('id-ID', { minimumFractionDigits: dec, maximumFractionDigits: dec }) : Array.isArray(v) ? JSON.stringify(v) : v
 </script>
 
 {#if res.interpretation}<p class="note">{res.interpretation}</p>{/if}
@@ -29,9 +31,9 @@
 {#if res.error}<p class="error">{res.error}</p>{/if}
 
 {#if res.chart?.type === 'stat'}
-  <div class="stat">{fmt(res.rows[0][0])}<small>{res.columns[0]}</small></div>
+  <div class="stat">{fmt(res.rows[0][0], decimals[0])}<small>{res.columns[0]}</small></div>
 {:else if res.chart}
-  <Chart chart={res.chart} columns={res.columns} rows={res.rows} />
+  <Chart chart={res.chart} columns={res.columns} rows={res.rows} labels={res.display_short?.[res.chart.x]} />
 {/if}
 
 {#if narrated}
@@ -45,8 +47,8 @@
     <table>
       <thead><tr>{#each res.columns as c}<th>{c}</th>{/each}</tr></thead>
       <tbody>
-        {#each shown as row}
-          <tr>{#each row as v}<td class:num={typeof v === 'number'}>{fmt(v)}</td>{/each}</tr>
+        {#each shown as row, i}
+          <tr>{#each row as v, c}<td class:num={typeof v === 'number'}>{res.display?.[res.columns[c]]?.[i] ?? fmt(v, decimals[c])}</td>{/each}</tr>
         {/each}
       </tbody>
     </table>

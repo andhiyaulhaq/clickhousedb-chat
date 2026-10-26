@@ -1,5 +1,5 @@
 from app.notes import labeler, period_kind
-from app.summary import _num, summarize
+from app.summary import _num, period_labels, summarize
 
 
 def test_number_format():
@@ -63,3 +63,27 @@ def test_labels_that_are_not_plain_dates_stay_as_they_are():
     assert period_kind(["2026-10-24 13:00:00", "2026-10-24 14:00:00"]) is None  # hourly
     assert labels(["2026-10-24 13:00:00"]) == ["2026-10-24 13:00:00"]
     assert labels(["2026-02-30"]) == ["2026-02-30"]  # not a real date
+
+
+def test_period_labels_for_the_table_and_the_chart_axis():
+    rows = [["2025-01-01", 18754300.28], ["2025-02-01", 21543295.6], ["2025-03-01", 33011490.81]]
+    full, short = period_labels(["bulan", "total_omset"], rows)
+    assert full == {"bulan": ["Januari 2025", "Februari 2025", "Maret 2025"]} and short == {"bulan": ["Jan 2025", "Feb 2025", "Mar 2025"]}
+    full, short = period_labels(["month", "revenue"], [["2025-10-01", 1], ["2026-03-01", 2]], "", True)
+    assert full["month"] == ["October 2025", "March 2026"] and short["month"] == ["Oct 2025", "Mar 2026"]
+    q = [["2025-01-01", 1], ["2025-04-01", 2], ["2025-07-01", 3]]
+    assert period_labels(["q", "n"], q, "SELECT toStartOfQuarter(x)")[0]["q"] == ["Q1 2025", "Q2 2025", "Q3 2025"]
+    assert period_labels(["q", "n"], q, "SELECT toStartOfQuarter(x)")[1]["q"] == ["Q1 2025", "Q2 2025", "Q3 2025"]  # no short form for a quarter
+
+
+def test_period_labels_leave_other_columns_alone():
+    assert period_labels(["segmen", "n"], [["A", 1], ["B", 2]]) == ({}, {})  # not dates
+    assert period_labels(["dibuat", "n"], [["2026-10-24 13:05:22", 1], ["2026-10-24 14:10:00", 2]]) == ({}, {})  # timestamps stay as they are
+    assert period_labels(["bulan", "n"], []) == ({}, {})
+
+
+def test_period_labels_keep_a_null_as_blank_and_every_date_column():
+    rows = [["2025-01-01", None, "2025-03-14"], ["2025-02-01", "2025-05-01", "2025-03-15"]]
+    full, _ = period_labels(["bulan", "tutup", "tgl"], rows)
+    assert full["bulan"] == ["Januari 2025", "Februari 2025"] and full["tutup"] == ["", "Mei 2025"]
+    assert full["tgl"] == ["14 Maret 2025", "15 Maret 2025"]  # plain dates: day, month, year

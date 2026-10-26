@@ -24,6 +24,8 @@ class AskResponse(BaseModel):
     interpretation: str | None = None  # caveats read from the SQL: which deal date, overlapping groups, an unbounded ranking
     columns: list[str] = []
     rows: list[list[Any]] = []
+    display: dict[str, list[str]] = {}  # date column -> label per row ("Januari 2025", "Q3 2026") for the table; rows keep the raw dates
+    display_short: dict[str, list[str]] = {}  # the same, short ("Jan 2025"), for a chart axis
     chart: Chart | None = None  # filled by shaping.py
     summary: str | None = None  # one rule-based sentence (summary.py), shown at once
     summary_id: str | None = None  # GET /summary/{id} returns a model-written paragraph, checked against the data; may be null

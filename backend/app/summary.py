@@ -66,6 +66,22 @@ def _extract(columns: list[str], rows: list[list], sql: str = ""):
     return series, label, metric, pairs, core, first_out, last_out
 
 
+def period_labels(columns: list[str], rows: list[list], sql: str = "", english: bool = False) -> tuple[dict, dict]:
+    """How the UI names the date columns that are periods: {column: one label per row}, in full (Januari 2025, Q3 2026) for the table and
+    short (Jan 2025) for a chart axis. The rows keep the raw dates. A column whose values are not period starts or dates (a timestamp) is left out."""
+    full, short = {}, {}
+    for i, col in enumerate(columns):
+        values = [r[i] for r in rows]
+        if not rows or kind(values) != "date":
+            continue
+        present = [v for v in values if v is not None]
+        a, b = labeler(present, sql, english), labeler(present, sql, english, short=True)
+        names = [a(v) if v is not None else "" for v in values]
+        if names != [str(v) if v is not None else "" for v in values]:  # at least one label was renamed
+            full[col], short[col] = names, [b(v) if v is not None else "" for v in values]
+    return full, short
+
+
 def summarize(columns: list[str], rows: list[list], english: bool = False, sql: str = "") -> str | None:
     found = _extract(columns, rows, sql)
     if found is None:

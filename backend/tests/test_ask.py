@@ -159,3 +159,16 @@ def test_answer_carries_a_rule_based_summary(stub, monkeypatch):
     monkeypatch.setattr(executor, "run", lambda sql: (["segmen", "n"], [["Enterprise", 10], ["SMB", 4]]))
     r = text_to_sql.ask("jumlah pelanggan per segmen")
     assert r.summary == "2 baris. n: tertinggi Enterprise (10), terendah SMB (4)."
+
+
+def test_answer_names_the_period_columns_and_the_log_cuts_them(stub, tmp_path, monkeypatch):
+    sent, replies = stub
+    replies.append(GOOD)
+    monkeypatch.setattr(config, "LOG_PATH", tmp_path / "q.jsonl")
+    monkeypatch.setattr(config, "LOG_ROWS", 2)
+    monkeypatch.setattr(executor, "run", lambda sql: (["bulan", "n"], [[f"2025-{m:02d}-01", m] for m in range(1, 6)]))
+    body = TestClient(app).post("/ask", json={"question": "omset per bulan"}).json()
+    assert body["display"]["bulan"][:2] == ["Januari 2025", "Februari 2025"] and body["display_short"]["bulan"][0] == "Jan 2025"
+    assert body["rows"][0][0] == "2025-01-01"  # the data itself is untouched
+    entry = json.loads(config.LOG_PATH.read_text(encoding="utf-8"))
+    assert entry["response"]["display"] == {"bulan": ["Januari 2025", "Februari 2025"]} and "display_short" not in entry["response"]

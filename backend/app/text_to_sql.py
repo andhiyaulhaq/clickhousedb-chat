@@ -54,7 +54,9 @@ def ask(question: str) -> AskResponse:
             rows = shaping.mask(rows)
             english = notes.is_english(question)
             found = summary.facts(columns, rows, english, question, sql)
-            return AskResponse(sql=sql, interpretation=notes.caveats(sql, len(rows), english, [r[0] for r in rows] if rows and shaping.kind([r[0] for r in rows]) == "date" else None), columns=columns, rows=rows, chart=shaping.pick_chart(columns, rows),
+            names, short_names = summary.period_labels(columns, rows, sql, english)
+            return AskResponse(sql=sql, interpretation=notes.caveats(sql, len(rows), english, [r[0] for r in rows] if rows and shaping.kind([r[0] for r in rows]) == "date" else None), columns=columns, rows=rows, display=names, display_short=short_names,
+                               chart=shaping.pick_chart(columns, rows),
                                summary=summary.summarize(columns, rows, english, sql),
                                summary_id=narrate.register(question, found) if found and config.SUMMARY_MODEL else None,
                                attempts=attempts, trace=trace, timing=timing)

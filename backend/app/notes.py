@@ -84,6 +84,10 @@ def shape_note(sql: str, n_rows: int, english: bool) -> str:
     return " ".join(notes)
 
 
+_MONTHS_SHORT = {
+    False: ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"],
+    True: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+}
 _MONTHS = {
     False: ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"],
     True: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
@@ -122,9 +126,9 @@ def period_kind(labels: list, sql: str = "") -> str | None:
     return "day"
 
 
-def labeler(labels: list, sql: str, english: bool):
+def labeler(labels: list, sql: str, english: bool, short: bool = False):
     """2026-07-01 is shown as Juli 2026 for monthly data, Q3 2026 for quarterly, 2026 for yearly, and so on. A label that is not a date stays as is."""
-    kind_, names = period_kind(labels, sql), _MONTHS[english]
+    kind_, names = period_kind(labels, sql), (_MONTHS_SHORT if short else _MONTHS)[english]
 
     def fmt(label):
         d = _parse(label)
