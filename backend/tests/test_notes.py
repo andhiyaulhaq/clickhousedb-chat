@@ -4,7 +4,7 @@ from pathlib import Path
 import httpx
 
 from app import config, text_to_sql
-from app.notes import caveats, date_basis, is_english, shape_note
+from app.notes import caveats, date_basis, is_english, partial_period, shape_note, totals_misleading
 
 GOLD = Path(__file__).resolve().parents[2] / "data" / "gold"
 
@@ -64,3 +64,27 @@ def test_sql_calls_keep_the_model_loaded(monkeypatch):
     monkeypatch.setattr(httpx, "post", lambda url, json, timeout: (sent.append(json), Reply())[1])
     text_to_sql.generate([{"role": "user", "content": "q"}])
     assert [s["keep_alive"] for s in sent] == [config.OLLAMA_KEEP_ALIVE]
+
+
+MONTHLY = "SELECT toStartOfMonth(d.closed_date) AS bulan, sum(d.value) AS total_omset FROM deals AS d FINAL WHERE d.stage = 'won' AND d.closed_date >= {start} GROUP BY bulan ORDER BY bulan"
+
+
+def test_partial_period_only_for_a_rolling_window_grouped_by_period():
+    assert partial_period(MONTHLY.format(start="subtractYears(now(), 1)"))  # "1 tahun terakhir"
+    assert partial_period(MONTHLY.format(start="subtractMonths(today(), 6)"))
+    assert partial_period(MONTHLY.format(start="now() - INTERVAL 1 YEAR"))
+    assert not partial_period(MONTHLY.format(start="toStartOfYear(subtractYears(today(), 1))"))  # last calendar year: whole months
+    assert not partial_period(MONTHLY.format(start="toStartOfMonth(subtractMonths(today(), 6))"))
+    assert not partial_period("SELECT count() FROM deals AS d FINAL WHERE d.closed_date >= subtractDays(today(), 90)")  # not grouped by period
+
+
+def test_partial_period_note():
+    assert "belum penuh" in shape_note(MONTHLY.format(start="subtractYears(now(), 1)"), 13, False)
+    assert "partial" in shape_note(MONTHLY.format(start="subtractYears(now(), 1)"), 13, True)
+    assert shape_note(MONTHLY.format(start="toStartOfYear(today())"), 13, False) == ""
+
+
+def test_totals_are_misleading_for_a_top_n_and_for_overlapping_groups():
+    assert totals_misleading("SELECT r.name, sum(d.value) AS t FROM deals AS d FINAL GROUP BY r.name ORDER BY t DESC LIMIT 5")
+    assert totals_misleading("SELECT p, sum(d.value) FROM deals AS d FINAL ARRAY JOIN d.products_involved AS p GROUP BY p")
+    assert not totals_misleading("SELECT c.segment, count() FROM customers AS c FINAL GROUP BY c.segment")

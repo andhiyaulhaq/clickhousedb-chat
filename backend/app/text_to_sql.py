@@ -53,9 +53,9 @@ def ask(question: str) -> AskResponse:
             columns, rows = timed("execute", lambda: executor.run(validator.validate(sql)))
             rows = shaping.mask(rows)
             english = notes.is_english(question)
-            found = summary.facts(columns, rows, english, question)
+            found = summary.facts(columns, rows, english, question, sql)
             return AskResponse(sql=sql, interpretation=notes.caveats(sql, len(rows), english), columns=columns, rows=rows, chart=shaping.pick_chart(columns, rows),
-                               summary=summary.summarize(columns, rows, english),
+                               summary=summary.summarize(columns, rows, english, sql),
                                summary_id=narrate.register(question, found) if found and config.SUMMARY_MODEL else None,
                                attempts=attempts, trace=trace, timing=timing)
         except validator.Unanswerable as e:

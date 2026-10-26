@@ -24,7 +24,7 @@ def main(n):
     for g in gold[:: (len(gold) // (n * 3)) | 1]:  # an odd step, or every pick would land in the same language  # spread over categories and both languages; many are single values or lists
         cols, rows = executor.run(g["sql"])
         rows = shaping.mask(rows)
-        facts = summary.facts(cols, rows, is_english(g["question"]), g["question"])
+        facts = summary.facts(cols, rows, is_english(g["question"]), g["question"], g["sql"])
         if facts is None:
             continue
         job = narrate.register(g["question"], facts)

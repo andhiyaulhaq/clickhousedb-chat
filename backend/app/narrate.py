@@ -24,9 +24,16 @@ PACKS = {
         "Jangan membulatkan, menghitung, atau membuat angka baru. Jangan menebak penyebab dan jangan menyebut SQL. "
         "Jangan menyebut atribut atau kesimpulan yang tidak tertulis di FAKTA (misalnya segmen, tim, atau bahwa data tidak ditemukan).",
         ("Pertanyaan", "FAKTA"),
-        ("Pertanyaan: omset per produk\nFAKTA:\n- jumlah baris: 3\n- total omset: tertinggi A (50 juta); terendah C (20 juta)\n"
-         "- nilai per produk: A (50 juta), B (40 juta), C (20 juta)\n- jumlah seluruh baris untuk total omset: 110 juta\n- A menyumbang 45% dari total",
-         "Produk A menghasilkan omset terbesar, yaitu 50 juta atau 45% dari total 110 juta. Produk C paling rendah dengan 20 juta."),
+        [
+            ("Pertanyaan: omset per produk\nFAKTA:\n- jumlah baris: 3\n- total omset: tertinggi produk A (50 juta); terendah produk C (20 juta)\n"
+             "- nilai per produk: A (50 juta), B (40 juta), C (20 juta)\n- jumlah seluruh baris untuk total omset: 110 juta\n- A menyumbang 45% dari total",
+             "Produk A menghasilkan omset terbesar, yaitu 50 juta atau 45% dari total 110 juta. Produk C paling rendah dengan 20 juta."),
+            ("Pertanyaan: omset per bulan tahun lalu\nFAKTA:\n- jumlah baris: 4\n- total omset: tertinggi bulan 2025-03-01 (33 juta); terendah bulan 2025-01-01 (18 juta)\n"
+             "- nilai per bulan: 2025-01-01 (18 juta), 2025-02-01 (21 juta), 2025-03-01 (33 juta), 2025-04-01 (20 juta)\n"
+             "- jumlah seluruh baris untuk total omset: 92 juta\n- 2025-03-01 menyumbang 36% dari total\n- total omset dari 2025-01-01 ke 2025-04-01: naik 11%",
+             "Omset bulanan tertinggi terjadi pada 2025-03-01 sebesar 33 juta, dan terendah pada 2025-01-01 sebesar 18 juta. "
+             "Dari 2025-01-01 ke 2025-04-01 omset naik 11%, dengan total 92 juta sepanjang periode."),
+        ],
     ),
     "en": (
         "You write a short summary of a query result that answers the user's question, in English, 2 to 3 full sentences. "
@@ -34,9 +41,16 @@ PACKS = {
         "Do not round, calculate or invent numbers. Do not guess causes and do not mention SQL. "
         "Do not state attributes or conclusions that are not written in the FACTS (for example a segment, a team, or that no data was found).",
         ("Question", "FACTS"),
-        ("Question: revenue per product\nFACTS:\n- number of rows: 3\n- total revenue: highest A (50 million); lowest C (20 million)\n"
-         "- values per product: A (50 million), B (40 million), C (20 million)\n- sum over all rows of total revenue: 110 million\n- A accounts for 45% of the total",
-         "Product A earns the most, 50 million, which is 45% of the 110 million total. Product C is the lowest at 20 million."),
+        [
+            ("Question: revenue per product\nFACTS:\n- number of rows: 3\n- total revenue: highest product A (50 million); lowest product C (20 million)\n"
+             "- values per product: A (50 million), B (40 million), C (20 million)\n- sum over all rows of total revenue: 110 million\n- A accounts for 45% of the total",
+             "Product A earns the most, 50 million, which is 45% of the 110 million total. Product C is the lowest at 20 million."),
+            ("Question: revenue per month last year\nFACTS:\n- number of rows: 4\n- total revenue: highest month 2025-03-01 (33 million); lowest month 2025-01-01 (18 million)\n"
+             "- values per month: 2025-01-01 (18 million), 2025-02-01 (21 million), 2025-03-01 (33 million), 2025-04-01 (20 million)\n"
+             "- sum over all rows of total revenue: 92 million\n- 2025-03-01 accounts for 36% of the total\n- total revenue from 2025-01-01 to 2025-04-01: rose 11%",
+             "Monthly revenue peaked on 2025-03-01 at 33 million and was lowest on 2025-01-01 at 18 million. "
+             "From 2025-01-01 to 2025-04-01 revenue rose 11%, for a total of 92 million over the period."),
+        ],
     ),
 }
 _ABSENT = re.compile(r"tidak (?:ditemukan|ada|tersedia)|not found|no (?:data|results?|rows?)|none found", re.I)
@@ -53,10 +67,10 @@ def register(question: str, facts: Facts) -> str:
 
 
 def _messages(question: str, facts: Facts) -> list[dict]:
-    system, (q, fact_label), (example_user, example_reply) = PACKS["en" if facts.english else "id"]
+    system, (q, fact_label), examples = PACKS["en" if facts.english else "id"]
     body = f"{q}: {question}\n{fact_label}:\n" + "\n".join(f"- {line}" for line in facts.lines)
-    return [{"role": "system", "content": system}, {"role": "user", "content": example_user},
-            {"role": "assistant", "content": example_reply}, {"role": "user", "content": body}]
+    shots = [m for user, reply in examples for m in ({"role": "user", "content": user}, {"role": "assistant", "content": reply})]
+    return [{"role": "system", "content": system}, *shots, {"role": "user", "content": body}]
 
 
 def generate(messages: list[dict]) -> str:
@@ -72,8 +86,8 @@ def generate(messages: list[dict]) -> str:
 
 def _fluent(text: str) -> bool:
     """A sentence, not a dump of rows: 'Eko Gunawan 4641 | Indah Lestari' and '61,45; 60,50' are what the model writes when it copies."""
-    letters = sum(c.isalpha() for c in text)
-    return len(text.split()) >= 6 and "|" not in text and letters >= 0.6 * len(text.replace(" ", "")) and text[-1] in ".!?)"
+    words = re.findall(r"[^\W\d_]{3,}", text)  # real words: a sentence with four dates in it is still a sentence
+    return len(text.split()) >= 6 and len(words) >= 3 and "|" not in text and text[-1] in ".!?)"
 
 
 def verify(text: str, facts: Facts) -> str | None:

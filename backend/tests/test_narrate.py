@@ -67,8 +67,9 @@ def test_verify_checks_the_direction():
 
 def test_prompt_contains_only_the_facts_and_a_preview():
     f = make_facts()
-    system, example, reply, user = [m["content"] for m in narrate._messages("omset per bulan", f)]
-    assert "bahasa Indonesia" in system and "angka baru" in system and "Produk A menghasilkan" in reply
+    system, ranking, ranking_reply, series, series_reply, user = [m["content"] for m in narrate._messages("omset per bulan", f)]
+    assert "bahasa Indonesia" in system and "angka baru" in system and "Produk A menghasilkan" in ranking_reply
+    assert "Omset bulanan tertinggi" in series_reply  # a series has its own example: without it the model wrote "omset per bulan adalah 31,3 juta"
     assert "omset per bulan" in user and "- jumlah baris: 3" in user and "- nilai per bulan: 2025-01-01" in user
     assert "|" not in user  # no sample rows: the model echoed them back
 
@@ -166,3 +167,32 @@ def test_no_narration_when_the_summary_model_is_switched_off(monkeypatch):
     monkeypatch.setattr(executor, "run", lambda sql: (["bulan", "total_omset"], [["2025-01-01", 1.0], ["2025-02-01", 2.0]]))
     r = text_to_sql.ask("omset per bulan")
     assert r.summary and r.summary_id is None  # the rule-based sentence stays
+
+
+ROLLING = ("SELECT toStartOfMonth(d.closed_date) AS bulan, sum(d.value) AS total_omset FROM deals AS d FINAL "
+                     "WHERE d.stage = 'won' AND d.closed_date >= subtractYears(now(), 1) GROUP BY bulan ORDER BY bulan")
+WINDOW = [["2025-10-01", 4.4e6], ["2025-11-01", 29.3e6], ["2025-12-01", 29.2e6], ["2026-01-01", 26.4e6], ["2026-02-01", 31.3e6], ["2026-03-01", 20.1e6]]
+
+
+def test_a_partial_first_period_is_not_the_lowest():
+    from app.summary import summarize
+    s = summarize(["bulan", "total_omset"], WINDOW, False, ROLLING)
+    assert "tertinggi pada 2026-02-01 (31,3 juta), terendah pada 2026-01-01 (26,4 juta)" in s and "4,4 juta" not in s and "tidak dihitung: belum penuh" in s
+    f = facts(["bulan", "total_omset"], WINDOW, False, "omset 1 tahun terakhir", ROLLING)
+    assert "tertinggi bulan 2026-02-01 (31,3 juta); terendah bulan 2026-01-01 (26,4 juta)" in " ".join(f.lines)
+    assert any("belum penuh" in l and "2025-10-01" in l and "2026-03-01" in l for l in f.lines)
+    assert any(l.startswith("jumlah seluruh baris") for l in f.lines)  # the window total is still a real total
+    assert f.trend == "up"  # change from 2025-11 to 2026-02 (29,3 to 31,3 juta), not from the partial October
+    assert "2025-10-01 (4,4 juta)" in " ".join(f.lines)  # the partial value is still listed, with the explanation
+    # without a rolling window nothing is left out
+    assert "4,4 juta" in summarize(["bulan", "total_omset"], WINDOW, False, "")
+
+
+def test_no_total_or_share_for_a_top_n_or_overlapping_groups():
+    rows = [["Rudi", 21.4e6], ["Hendra", 20.6e6], ["Eko", 20.3e6]]
+    sql = "SELECT r.name, sum(d.value) AS total_omset FROM deals AS d FINAL GROUP BY r.name ORDER BY total_omset DESC LIMIT 5"
+    f = facts(["name", "total_omset"], rows, False, "top 5 sales", sql)
+    assert not any("seluruh baris" in l or "menyumbang" in l for l in f.lines)
+    assert any("seluruh baris" in l for l in facts(["name", "total_omset"], rows, False, "sales", "SELECT 1").lines)
+    overlapping = "SELECT product, sum(d.value) AS total_revenue FROM deals AS d FINAL ARRAY JOIN d.products_involved AS product GROUP BY product"
+    assert not any("accounts for" in l or "sum over" in l for l in facts(["product", "total_revenue"], rows, True, "revenue per product", overlapping).lines)
