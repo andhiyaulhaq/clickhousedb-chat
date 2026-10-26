@@ -28,3 +28,7 @@ data/archive/
 
 # Query log written by the backend (questions can be sensitive)
 data/logs/
+
+# Node
+node_modules/
+frontend/dist/

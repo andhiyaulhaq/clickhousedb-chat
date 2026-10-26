@@ -114,7 +114,7 @@ backend/
 │   └── summary.py        # summary prompt + call
 ├── tests/                # validator (267 gold queries), executor (needs ClickHouse), repair loop (stubbed)
 └── eval_gold.py          # gold questions through the full pipeline: uv run python eval_gold.py holdout|eval|both
-frontend/                 # Svelte + Vite, pnpm
+frontend/                 # Svelte 5 + Vite + Chart.js, pnpm: App (chat), Answer (stat/chart/table/SQL), Chart       (done)
 clickhouse/schema.sql     # DDL extract: source of the validator whitelist
 clickhouse/app_user.sql   # the restricted `app` user, created by `pipeline.py setup`
 ```
@@ -141,7 +141,7 @@ The rest of the repo (model workspace, data, docs) is mapped in `README.md`. Kee
 2. **Validator and executor. Done.** The validator checks qualified columns against their own table, so an invented `c.rep_id` is refused as unanswerable instead of failing in ClickHouse.
 3. **`text_to_sql.py` and `/ask`. Done.** Full-pipeline accuracy (`backend/eval_gold.py`, per-question results in `data/results/app_*.jsonl`): holdout 88.7% strict / 91.7% lenient, dev 85.1%, the same as the bare model within noise. Unknown tables or columns are refused, not retried; retrying them did not help in the bare-model retry run either.
 4. **`shaping.py`. Done.** Emails masked (`b***@acme.com`), chart picked by rule (stat, line, bar, else table only) and typed as `Chart` in the response. Each `/ask` is also logged to `data/logs/queries.jsonl` (question, SQL, outcome; never rows; git-ignored). Read it for failure modes and retraining data.
-5. **Svelte chat:** question box, chart, table, SQL and interpretation view. Todo.
+5. **Svelte chat. Done.** Question box, stat/line/bar chart, table, collapsible SQL (with the repair count), error banners. The Vite dev server proxies `/ask` to the backend. No SSE streaming yet: one request, a loading line for the 7 to 10 s; add streaming when the summary model (step 6) makes the wait longer.
 6. **Summary model.** Todo.
 7. **Adversarial eval set;** add a guard only if something gets through. Todo.
 8. **Later:** follow-up question rewriter; new schemas (which need a new fine-tune, see `docs/training.md`).

@@ -2,7 +2,7 @@
 
 Ask questions in Indonesian about CRM data. A fine-tuned 3B model (`text2sql-3b-v3`, running in Ollama) turns the question into ClickHouse SQL, the app validates and runs it read-only, and the answer comes back as a chart plus a short summary.
 
-**Status:** model trained and evaluated (88 to 89.5% strict on 133 independent questions); the backend answers questions end to end (`POST /ask`: model, validator, restricted ClickHouse user, up to 2 repairs). Results come back with emails masked and a chart type chosen by rule; every question is logged to `data/logs/`. The chat UI and summary are next. Internal pilot, local only. Details and build order: `docs/guide.md`.
+**Status:** model trained and evaluated (88 to 89.5% strict on 133 independent questions); the backend answers questions end to end (`POST /ask`: model, validator, restricted ClickHouse user, up to 2 repairs). Results come back with emails masked and a chart type chosen by rule; every question is logged to `data/logs/`. The chat UI is in `frontend/`; the summary is next. Internal pilot, local only. Details and build order: `docs/guide.md`.
 
 ## Quick start
 ```bash
@@ -12,6 +12,7 @@ cd models/text2sql-3b-v3/output && ollama create text2sql-3b-v3 -f Modelfile   #
 uv run python pipeline.py ask "berapa omset bulan ini?"                  # question -> SQL -> rows
 cd backend && uv run pytest                # validator (267 gold queries), executor (needs ClickHouse), repair loop
 cd backend && uv run uvicorn app.main:app --port 8000   # POST /ask {"question": "..."}
+cd frontend && pnpm install && pnpm dev    # chat UI on http://localhost:5173 (needs the backend on :8000)
 cd backend && uv run python eval_gold.py holdout        # gold questions through the full pipeline (about 15 min)
 ```
 Seeded dates are relative to the day you run `setup`, so "hari ini / kemarin" return no rows after a few days: re-run `setup`. Only one ClickHouse can hold port 8123; stop any other container first.
