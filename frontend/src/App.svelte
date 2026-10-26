@@ -12,6 +12,7 @@
     const q = question.trim()
     if (!q || busy) return
     question = ''
+    const t0 = performance.now()
     items.push({ question: q, pending: true })
     const item = items[items.length - 1]
     tick().then(() => bottom.scrollIntoView({ behavior: 'smooth' }))
@@ -27,6 +28,7 @@
     } catch {
       item.err = 'Server tidak terjangkau. Pastikan backend berjalan di port 8000.'
     }
+    item.secs = ((performance.now() - t0) / 1000).toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
     item.pending = false
     tick().then(() => bottom.scrollIntoView({ behavior: 'smooth' }))
   }
@@ -49,6 +51,7 @@
       {:else}
         <Answer res={item.res} />
       {/if}
+      {#if item.secs}<p class="meta">Dijawab dalam {item.secs} detik</p>{/if}
     </section>
   {/each}
   <div bind:this={bottom}></div>
