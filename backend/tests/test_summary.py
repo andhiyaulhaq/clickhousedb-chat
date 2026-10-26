@@ -1,4 +1,5 @@
-from app.summary import _labeler, _num, period_kind, summarize
+from app.notes import labeler, period_kind
+from app.summary import _num, summarize
 
 
 def test_number_format():
@@ -33,7 +34,7 @@ def test_nothing_to_add():
 
 
 def labels(raw, sql="", english=False):
-    fmt = _labeler(raw, sql, english)
+    fmt = labeler(raw, sql, english)
     return [fmt(l) for l in raw]
 
 

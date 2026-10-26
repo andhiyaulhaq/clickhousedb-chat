@@ -174,13 +174,14 @@ ROLLING = ("SELECT toStartOfMonth(d.closed_date) AS bulan, sum(d.value) AS total
 WINDOW = [["2025-10-01", 4.4e6], ["2025-11-01", 29.3e6], ["2025-12-01", 29.2e6], ["2026-01-01", 26.4e6], ["2026-02-01", 31.3e6], ["2026-03-01", 20.1e6]]
 
 
-def test_a_partial_first_period_is_not_the_lowest():
+def test_a_partial_first_period_is_not_the_lowest(monkeypatch):
     from app.summary import summarize
+    monkeypatch.setattr(notes, "today", lambda: date(2026, 3, 15))  # March is still running
     s = summarize(["bulan", "total_omset"], WINDOW, False, ROLLING)
     assert "tertinggi pada Februari 2026 (31,3 juta), terendah pada Januari 2026 (26,4 juta)" in s and "4,4 juta" not in s and "tidak dihitung: belum penuh" in s
     f = facts(["bulan", "total_omset"], WINDOW, False, "omset 1 tahun terakhir", ROLLING)
     assert "tertinggi bulan Februari 2026 (31,3 juta); terendah bulan Januari 2026 (26,4 juta)" in " ".join(f.lines)
-    assert any("belum penuh" in l and "Oktober 2025" in l and "Maret 2026" in l for l in f.lines)
+    assert any("belum penuh" in l and "Oktober 2025" in l for l in f.lines) and any("masih berjalan" in l and "Maret 2026" in l for l in f.lines)
     assert any(l.startswith("jumlah seluruh baris") for l in f.lines)  # the window total is still a real total
     assert f.trend == "up"  # change from 2025-11 to 2026-02 (29,3 to 31,3 juta), not from the partial October
     assert "Oktober 2025 (4,4 juta)" in " ".join(f.lines)  # the partial value is still listed, with the explanation
@@ -196,3 +197,69 @@ def test_no_total_or_share_for_a_top_n_or_overlapping_groups():
     assert any("seluruh baris" in l for l in facts(["name", "total_omset"], rows, False, "sales", "SELECT 1").lines)
     overlapping = "SELECT product, sum(d.value) AS total_revenue FROM deals AS d FINAL ARRAY JOIN d.products_involved AS product GROUP BY product"
     assert not any("accounts for" in l or "sum over" in l for l in facts(["product", "total_revenue"], rows, True, "revenue per product", overlapping).lines)
+
+
+from datetime import date
+
+import pytest
+
+from app import notes
+from app.summary import summarize
+
+THIS_YEAR = "SELECT toStartOfMonth(d.closed_date) AS bulan, sum(d.value) AS total_omset FROM deals AS d FINAL WHERE d.stage = 'won' AND d.closed_date >= toStartOfYear(today()) GROUP BY bulan ORDER BY bulan"
+YTD = [[f"2026-{m:02d}-01", v] for m, v in enumerate([27e6, 26e6, 31e6, 29e6, 30e6, 22e6, 31e6, 28e6, 28e6, 9e6], 1)]  # October is still running
+
+
+@pytest.fixture
+def october_26(monkeypatch):
+    monkeypatch.setattr(notes, "today", lambda: date(2026, 10, 26))
+
+
+def test_the_month_in_progress_is_not_the_lowest(october_26):
+    s = summarize(["bulan", "total_omset"], YTD, False, THIS_YEAR)
+    assert "terendah pada Juni 2026 (22 juta)" in s and "9 juta" not in s and "masih berjalan" in s
+    f = facts(["bulan", "total_omset"], YTD, False, "omset tahun ini", THIS_YEAR)
+    assert any("periode terakhir (Oktober 2026) masih berjalan" in l for l in f.lines)
+    assert any(l.startswith("total omset dari Januari 2026 ke September 2026: ") for l in f.lines)  # not "to October"
+    assert any("Oktober 2026 (9 juta)" in l for l in f.lines)  # still listed, with the explanation
+    assert any("jumlah seluruh baris" in l for l in f.lines)  # what has happened so far is a real total
+
+
+def test_a_finished_year_is_untouched(october_26):
+    last_year = [[d.replace("2026", "2025"), v] for d, v in YTD]
+    s = summarize(["bulan", "total_omset"], last_year, False, THIS_YEAR.replace("toStartOfYear(today())", "toStartOfYear(subtractYears(today(), 1))"))
+    assert "terendah pada Oktober 2025 (9 juta)" in s and "masih berjalan" not in s
+
+
+def test_each_granularity_knows_when_it_is_still_running(october_26):
+    now = date(2026, 10, 26)  # a Monday
+    assert notes.period_in_progress("2026-10-01", "month", now) and not notes.period_in_progress("2026-09-01", "month", now)
+    assert notes.period_in_progress("2026-10-01", "quarter", now) and not notes.period_in_progress("2026-07-01", "quarter", now)
+    assert notes.period_in_progress("2026-01-01", "year", now) and not notes.period_in_progress("2025-01-01", "year", now)
+    assert notes.period_in_progress("2026-10-26", "week", now) and not notes.period_in_progress("2026-10-19", "week", now)
+    assert notes.period_in_progress("2026-10-26", "day", now) and not notes.period_in_progress("2026-10-25", "day", now)
+    assert not notes.period_in_progress("Enterprise", "month", now)
+
+
+def test_the_note_under_the_answer_names_the_unfinished_period(october_26):
+    labels = [r[0] for r in YTD]
+    assert "Periode terakhir, Oktober 2026, masih berjalan" in notes.caveats(THIS_YEAR, 10, False, labels)
+    assert "The last period, October 2026, is still in progress" in notes.caveats(THIS_YEAR, 10, True, labels)
+    assert notes.caveats(THIS_YEAR, 10, False, labels[:9]) is not None  # the date note is still there
+    assert "masih berjalan" not in (notes.caveats(THIS_YEAR, 10, False, labels[:9]) or "")  # September is over
+    rolling = THIS_YEAR.replace("toStartOfYear(today())", "subtractYears(now(), 1)")
+    both = notes.caveats(rolling, 10, False, labels)  # a rolling window: partial start, unfinished end
+    assert "Periode pertama belum penuh" in both and "Periode terakhir, Oktober 2026, masih berjalan" in both
+
+
+def test_a_rolling_window_whose_last_period_is_over_only_loses_the_first(monkeypatch):
+    """Today is Monday 26 October: the week of 19 October is complete, and the week of 26 October has no rows yet."""
+    monkeypatch.setattr(notes, "today", lambda: date(2026, 10, 26))
+    weeks = [["2026-07-20", 5], ["2026-07-27", 9], ["2026-08-03", 6], ["2026-08-10", 14], ["2026-08-17", 8], ["2026-10-19", 3]]
+    sql = "SELECT toStartOfWeek(t.created_at, 1) AS minggu, count() AS jumlah_tiket FROM support_tickets AS t FINAL WHERE t.created_at >= subtractMonths(now(), 3) GROUP BY minggu"
+    s = summarize(["minggu", "jumlah_tiket"], weeks, False, sql)
+    assert "terendah pada minggu 19 Oktober 2026 (3)" in s and "Periode pertama tidak dihitung: belum penuh" in s  # the finished last week counts
+    f = facts(["minggu", "jumlah_tiket"], weeks, False, "tiket per minggu", sql)
+    assert any("periode pertama" in l and "belum penuh" in l for l in f.lines) and not any("periode terakhir" in l for l in f.lines)
+    assert "Periode pertama belum penuh" in notes.caveats(sql, 6, False, [w[0] for w in weeks])
+    assert "masih berjalan" not in notes.caveats(sql, 6, False, [w[0] for w in weeks])
