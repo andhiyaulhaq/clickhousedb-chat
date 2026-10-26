@@ -1,0 +1,58 @@
+import json
+from pathlib import Path
+
+import httpx
+
+from app import interpret
+
+
+class Reply:
+    def __init__(self, content):
+        self.content = content
+
+    def raise_for_status(self):
+        pass
+
+    def json(self):
+        return {"message": {"content": self.content}}
+
+
+def test_returns_the_first_line_cleaned(monkeypatch):
+    sent = {}
+    monkeypatch.setattr(httpx, "post", lambda url, json, timeout: (sent.update(json), Reply('  "Saya membaca ini sebagai:  omset per bulan."\nCatatan: abaikan'))[1])
+    assert interpret.interpret("omset per bulan", "SELECT 1") == "Saya membaca ini sebagai: omset per bulan."
+    assert sent["model"] == interpret.config.SUMMARY_MODEL and sent["options"]["temperature"] == 0
+    assert "SELECT 1" in sent["messages"][-1]["content"] and sent["messages"][-1]["role"] == "user"
+
+
+def test_model_override(monkeypatch):
+    sent = {}
+    monkeypatch.setattr(httpx, "post", lambda url, json, timeout: (sent.update(json), Reply("x"))[1])
+    interpret.interpret("q", "s", model="llama3.2")
+    assert sent["model"] == "llama3.2"
+
+
+def test_failure_means_no_line(monkeypatch):
+    def down(*a, **k):
+        raise httpx.ConnectError("down")
+    monkeypatch.setattr(httpx, "post", down)
+    assert interpret.interpret("q", "s") is None
+    monkeypatch.setattr(httpx, "post", lambda *a, **k: Reply("   "))
+    assert interpret.interpret("q", "s") is None
+
+
+def test_language_is_detected_from_the_gold_questions():
+    """All 133 Indonesian and all 133 English holdout questions, so a wrong pack cannot slip in unnoticed."""
+    gold = Path(__file__).resolve().parents[2] / "data" / "gold"
+    qs = lambda f: [json.loads(l)["question"] for l in (gold / f).read_text(encoding="utf-8").splitlines() if l]
+    assert [q for q in qs("holdout.jsonl") if interpret.is_english(q)] == []
+    assert [q for q in qs("holdout_en.jsonl") if not interpret.is_english(q)] == []
+
+
+def test_prompt_uses_one_language_only(monkeypatch):
+    sent = {}
+    monkeypatch.setattr(httpx, "post", lambda url, json, timeout: (sent.update(json), Reply("x"))[1])
+    interpret.interpret("which reps won the most deals?", "SELECT 1")
+    assert "in English" in sent["messages"][0]["content"] and "Saya membaca" not in str(sent["messages"][1:-1])
+    interpret.interpret("sales mana yang paling banyak menang?", "SELECT 1")
+    assert "bahasa Indonesia" in sent["messages"][0]["content"] and "I read this as" not in str(sent["messages"][1:-1])

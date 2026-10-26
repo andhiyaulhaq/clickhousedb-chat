@@ -3,6 +3,7 @@ from pathlib import Path
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 SQL_MODEL = os.getenv("SQL_MODEL", "text2sql-3b-v3")
+SUMMARY_MODEL = os.getenv("SUMMARY_MODEL", "qwen2.5:3b-instruct")  # general instruct model under 3 GB; see backend/compare_interpret.py
 
 CH_URL = os.getenv("CH_URL", "http://localhost:8123/")
 CH_USER = os.getenv("APP_CH_USER", "app")  # the restricted user from clickhouse/app_user.sql, never `default`

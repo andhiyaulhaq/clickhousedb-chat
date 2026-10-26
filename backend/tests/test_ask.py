@@ -17,6 +17,7 @@ BAD = "SELECT rep_id FROM support_tickets FINAL"
 def stub(monkeypatch):
     """Model replies come from `replies` in order; every prompt it was sent is kept in `sent`."""
     sent, replies = [], []
+    monkeypatch.setattr(text_to_sql.interpret, "interpret", lambda q, s: "Saya membaca ini sebagai: tes")
     monkeypatch.setattr(text_to_sql, "generate", lambda m: (sent.append([x["content"] for x in m]), replies.pop(0))[1])
     monkeypatch.setattr(executor, "run", lambda sql: (["n"], [[1]]) if "support_tickets" not in sql else (_ for _ in ()).throw(ExecError("Code: 47. DB::Exception: Unknown identifier")))
     return sent, replies
@@ -27,6 +28,7 @@ def test_first_try(stub):
     replies.append(GOOD)
     r = text_to_sql.ask("berapa deal?")
     assert (r.error, r.attempts, r.rows) == (None, 0, [[1]]) and len(sent) == 1
+    assert r.interpretation == "Saya membaca ini sebagai: tes"
 
 
 def test_repairs_execution_error_and_sends_it_back(stub):

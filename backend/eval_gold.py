@@ -19,6 +19,7 @@ from app import executor, text_to_sql, validator  # noqa: E402
 
 # The app caps results at 1000 rows for display. Scoring raises the cap so a truncated listing is not counted wrong.
 text_to_sql.validator.validate = partial(validator.validate, limit=10000)
+text_to_sql.interpret.interpret = lambda question, sql: None  # rows are scored, not the interpretation line
 text_to_sql.shaping.mask = lambda rows: rows  # gold SQL returns real emails, so masked rows would never match
 
 
