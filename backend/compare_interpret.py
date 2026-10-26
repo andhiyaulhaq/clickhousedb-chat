@@ -22,8 +22,9 @@ def main(models, n):
         print(f"\n[{g['id']}] {g['question']}\n  SQL: {g['sql'][:300]}")
         for m in models:
             t0 = time.time()
-            line = interpret.interpret(g["question"], g["sql"], model=m)
-            print(f"  {m:28s} ({time.time() - t0:.1f}s) {line}")
+            line = interpret.raw(g["question"], g["sql"], model=m)
+            kept = line is not None and interpret.consistent(line, g["sql"])
+            print(f"  {m:28s} ({time.time() - t0:.1f}s){'' if kept else ' DROPPED'} {line}")
 
 
 if __name__ == "__main__":

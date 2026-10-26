@@ -56,3 +56,21 @@ def test_prompt_uses_one_language_only(monkeypatch):
     assert "in English" in sent["messages"][0]["content"] and "Saya membaca" not in str(sent["messages"][1:-1])
     interpret.interpret("sales mana yang paling banyak menang?", "SELECT 1")
     assert "bahasa Indonesia" in sent["messages"][0]["content"] and "I read this as" not in str(sent["messages"][1:-1])
+
+
+def test_consistent_drops_lines_that_contradict_the_sql():
+    created = "SELECT sum(d.value) FROM deals AS d FINAL WHERE d.created_date >= toStartOfMonth(today())"
+    activities = "SELECT toStartOfMonth(a.timestamp) AS bulan, count() FROM activities AS a GROUP BY bulan"
+    # the two wrong lines from the query log
+    assert not interpret.consistent("Saya membaca ini sebagai: jumlah semua deal yang ditutup bulan lalu.", created)
+    assert not interpret.consistent("Saya membaca ini sebagai: jumlah sales per bulan di tahun kemarin.", activities)
+    assert interpret.consistent("Saya membaca ini sebagai: jumlah nilai deal yang dibuat bulan ini.", created)
+    assert interpret.consistent("Saya membaca ini sebagai: jumlah aktivitas per bulan.", activities)
+    # a line about tickets over SQL that never reads support_tickets
+    assert not interpret.consistent("I read this as: the number of tickets.", "SELECT count() FROM deals AS d FINAL")
+    assert interpret.consistent("I read this as: the number of tickets with status open.", "SELECT count() FROM support_tickets AS t FINAL")
+
+
+def test_interpret_returns_none_for_an_inconsistent_line(monkeypatch):
+    monkeypatch.setattr(httpx, "post", lambda *a, **k: Reply("Saya membaca ini sebagai: deal yang ditutup bulan lalu."))
+    assert interpret.interpret("total deal", "SELECT sum(d.value) FROM deals AS d FINAL WHERE d.created_date > today()") is None

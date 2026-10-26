@@ -32,17 +32,20 @@ PACKS = {
             "Sebutkan metrik, filter (misalnya status deal atau tiket), periode waktu, dan pengelompokan yang benar-benar ada di SQL, "
             "dan sebutkan asumsi yang tidak dinyatakan pengguna. Jangan menambahkan hal yang tidak ada di SQL. "
             "Jika query menampilkan daftar baris dan bukan menghitung, tulis 'daftar', bukan 'jumlah'. "
-            "Omset berarti jumlah nilai deal dengan stage 'won'. Awali dengan 'Saya membaca ini sebagai:'."
+            "Omset berarti jumlah nilai deal dengan stage 'won'. "
+            "Kolom created_date adalah tanggal deal dibuat; closed_date adalah tanggal deal ditutup (won atau lost). "
+            "Tabel activities berisi aktivitas dan support_tickets berisi tiket. Sebut apa yang dihitung (deal, aktivitas, tiket) dan tanggal mana yang dipakai. "
+            "Awali dengan 'Saya membaca ini sebagai:'."
         ),
         examples=[
             ("omset per bulan tahun lalu",
              "SELECT toStartOfMonth(d.closed_date) AS bulan, sum(d.value) AS total_omset FROM deals AS d FINAL WHERE d.stage = 'won' "
              "AND d.closed_date >= toStartOfYear(subtractYears(today(), 1)) AND d.closed_date < toStartOfYear(today()) GROUP BY bulan ORDER BY bulan",
              "Saya membaca ini sebagai: total nilai deal berstatus won (omset), dikelompokkan per bulan, untuk tahun kalender lalu."),
-            ("berapa total deal bulan kemarin",
-             "SELECT sum(d.value) AS total_deal FROM deals AS d FINAL WHERE d.closed_date >= toStartOfMonth(subtractMonths(today(), 1)) "
-             "AND d.closed_date < toStartOfMonth(today())",
-             "Saya membaca ini sebagai: jumlah nilai semua deal yang ditutup bulan lalu, baik won maupun lost."),
+            ("nilai semua deal milik pelanggan Enterprise",
+             "SELECT sum(d.value) AS total_nilai FROM deals AS d FINAL INNER JOIN customers AS c FINAL ON d.customer_id = c.customer_id "
+             "WHERE c.segment = 'Enterprise'",
+             "Saya membaca ini sebagai: jumlah nilai semua deal (won, lost, dan yang masih berjalan) milik pelanggan segmen Enterprise, tanpa batas waktu."),
             ("pelanggan yang punya deal lost di atas 500 ribu",
              "SELECT DISTINCT c.customer_id, c.name FROM customers AS c FINAL INNER JOIN deals AS d FINAL ON c.customer_id = d.customer_id "
              "WHERE d.stage = 'lost' AND d.value > 500000",
@@ -56,7 +59,10 @@ PACKS = {
             "Name the metric, the filters (for example deal or ticket status), the time period and the grouping that are really in the SQL, "
             "and any assumption the user did not state. Do not add anything that is not in the SQL. "
             "If the query lists rows rather than counting them, say 'list of', not 'number of'. "
-            "Revenue means the sum of deal value with stage 'won'. Start with 'I read this as:'."
+            "Revenue means the sum of deal value with stage 'won'. "
+            "Column created_date is when a deal was created; closed_date is when it was closed (won or lost). "
+            "Table activities holds activities and support_tickets holds tickets. Say what is counted (deals, activities, tickets) and which date is used. "
+            "Start with 'I read this as:'."
         ),
         examples=[
             ("how many open tickets?",
@@ -82,7 +88,21 @@ def _messages(question: str, sql: str) -> list[dict]:
     return [{"role": "system", "content": pack["system"]}, *shots, ask(question, sql)]
 
 
-def interpret(question: str, sql: str, model: str | None = None) -> str | None:
+def consistent(line: str, sql: str) -> bool:
+    """False when the line contradicts the SQL on what a small model mixes up. A missing line beats a wrong one: it said
+    'ditutup' for created_date, and described a count of activities as 'jumlah sales'."""
+    low, s = line.lower(), sql.lower()
+    if re.search(r"ditutup|menutup|closed|\bclose\b", low) and "closed_date" not in s:
+        return False
+    if re.search(r"dibuat|created|\bcreate\b", low) and not re.search(r"created_(date|at)", s):
+        return False
+    for table, words in (("activities", r"aktivitas|activit"), ("support_tickets", r"tiket|ticket")):
+        if (table in s) != bool(re.search(words, low)):  # names a table the SQL does not read, or hides the one it reads
+            return False
+    return True
+
+
+def raw(question: str, sql: str, model: str | None = None) -> str | None:
     try:
         r = httpx.post(
             f"{config.OLLAMA_URL}/api/chat",
@@ -95,3 +115,8 @@ def interpret(question: str, sql: str, model: str | None = None) -> str | None:
     except (httpx.HTTPError, KeyError, ValueError):
         return None
     return " ".join(text.split("\n")[0].split()).strip("\"'")[:300] or None
+
+
+def interpret(question: str, sql: str, model: str | None = None) -> str | None:
+    line = raw(question, sql, model)
+    return line if line and consistent(line, sql) else None

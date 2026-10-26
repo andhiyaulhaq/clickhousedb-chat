@@ -18,7 +18,7 @@ def log(question: str, r: AskResponse | None, secs: float, exc: Exception | None
         entry["exception"] = f"{type(exc).__name__}: {exc}"
     if r:
         resp = r.model_dump() | {"row_count": len(r.rows), "rows": r.rows[:config.LOG_ROWS]}
-        entry |= {"refusal": r.refusal, "trace": r.trace, "response": resp}
+        entry |= {"refusal": r.refusal, "timing": r.timing, "trace": r.trace, "response": resp}
     config.LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
     with config.LOG_PATH.open("a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")

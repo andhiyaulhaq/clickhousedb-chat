@@ -130,3 +130,17 @@ def test_absent_concept_is_unanswerable_without_calling_the_model(stub):
     sent, replies = stub
     r = text_to_sql.ask("berapa gaji tiap sales dengan 5 win rate teratas?")
     assert r.error == text_to_sql.UNANSWERABLE and r.refusal == "absent" and not sent
+
+
+def test_meta_question_is_answered_without_the_model(stub):
+    sent, replies = stub
+    r = text_to_sql.ask("apa saja yang bisa aku tanyakan?")
+    assert r.error is None and r.rows and not sent
+
+
+def test_log_has_per_stage_timing(stub, tmp_path, monkeypatch):
+    sent, replies = stub
+    replies.append(GOOD)
+    monkeypatch.setattr(config, "LOG_PATH", tmp_path / "q.jsonl")
+    TestClient(app).post("/ask", json={"question": "berapa deal?"})
+    assert set(json.loads(config.LOG_PATH.read_text(encoding="utf-8"))["timing"]) == {"generate", "execute", "interpret"}
