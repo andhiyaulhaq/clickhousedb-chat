@@ -2,7 +2,7 @@
 information_schema, which the validator (rightly) refuses."""
 import re
 
-from app.interpret import is_english
+from app.notes import is_english
 from app.schemas import AskResponse
 
 META = re.compile(

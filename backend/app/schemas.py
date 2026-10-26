@@ -21,13 +21,14 @@ class Chart(BaseModel):
 
 class AskResponse(BaseModel):
     sql: str | None = None
-    interpretation: str | None = None  # "how I read your question", filled by the summary step
+    interpretation: str | None = None  # caveats read from the SQL: which deal date, overlapping groups, an unbounded ranking
     columns: list[str] = []
     rows: list[list[Any]] = []
     chart: Chart | None = None  # filled by shaping.py
-    summary: str | None = None  # filled by summary.py
+    summary: str | None = None  # one rule-based sentence (summary.py), shown at once
+    summary_id: str | None = None  # GET /summary/{id} returns a model-written paragraph, checked against the data; may be null
     error: str | None = None  # user-facing, Indonesian; sql is still returned so the query can be inspected
     attempts: int = 0  # how many times the model was asked to repair the SQL
     trace: list[dict] = Field(default_factory=list, exclude=True)  # every failed SQL attempt and why, for the query log only
-    timing: dict = Field(default_factory=dict, exclude=True)  # seconds spent in generate / execute / interpret, for the query log
+    timing: dict = Field(default_factory=dict, exclude=True)  # seconds spent in generate / execute, for the query log
     refusal: str | None = Field(default=None, exclude=True)  # why the input guard refused; for the query log, never sent to the client

@@ -2,8 +2,22 @@
   import Chart from './Chart.svelte'
 
   let { res } = $props()
-  const PREVIEW = 20 // keep in step with PREVIEW_ROWS in backend/app/interpret.py
+  const PREVIEW = 20 // keep in step with PREVIEW_ROWS in backend/app/notes.py
   let showAll = $state(false)
+  // The rule-based sentence (res.summary) is on screen at once. A model-written paragraph, with every number checked against
+  // the data, replaces it when it arrives; if it is rejected or fails, nothing changes.
+  let narrated = $state(null)
+  let narrating = $state(false)
+  $effect(() => {
+    const id = res.summary_id
+    if (!id) return
+    narrating = true
+    fetch(`/summary/${id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b) => (narrated = b?.summary ?? null))
+      .catch(() => {})
+      .finally(() => (narrating = false))
+  })
   const shown = $derived(showAll ? res.rows : res.rows.slice(0, PREVIEW))
 
   const fmt = (v) =>
@@ -20,7 +34,11 @@
   <Chart chart={res.chart} columns={res.columns} rows={res.rows} />
 {/if}
 
-{#if res.summary}<p>{res.summary}</p>{/if}
+{#if narrated}
+  <p>{narrated} <span class="meta">(ringkasan AI: angkanya dicek dengan data, tetapi tafsirannya bisa keliru)</span></p>
+{:else if res.summary}
+  <p>{res.summary}{#if narrating} <span class="meta">· menyusun ringkasan…</span>{/if}</p>
+{/if}
 
 {#if res.rows.length}
   <div class="table">

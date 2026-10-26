@@ -15,7 +15,6 @@ from pathlib import Path
 from app import text_to_sql
 
 ROOT = Path(__file__).resolve().parents[1]
-text_to_sql.interpret.interpret = lambda question, sql: None  # not under test here, and it would double the run time
 RAW_EMAIL = re.compile(r"[\w.+-]@")  # a masked email is `b***@acme.com`, so the character before @ is `*`
 
 

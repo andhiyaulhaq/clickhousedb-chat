@@ -17,7 +17,6 @@ BAD = "SELECT rep_id FROM support_tickets FINAL"
 def stub(monkeypatch):
     """Model replies come from `replies` in order; every prompt it was sent is kept in `sent`."""
     sent, replies = [], []
-    monkeypatch.setattr(text_to_sql.interpret, "interpret", lambda q, s: "Saya membaca ini sebagai: tes")
     monkeypatch.setattr(text_to_sql, "generate", lambda m: (sent.append([x["content"] for x in m]), replies.pop(0))[1])
     monkeypatch.setattr(executor, "run", lambda sql: (["n"], [[1]]) if "support_tickets" not in sql else (_ for _ in ()).throw(ExecError("Code: 47. DB::Exception: Unknown identifier")))
     return sent, replies
@@ -28,7 +27,7 @@ def test_first_try(stub):
     replies.append(GOOD)
     r = text_to_sql.ask("berapa deal?")
     assert (r.error, r.attempts, r.rows) == (None, 0, [[1]]) and len(sent) == 1
-    assert r.interpretation == "Saya membaca ini sebagai: tes"
+    assert r.interpretation is None  # nothing to caveat for a plain count
 
 
 def test_repairs_execution_error_and_sends_it_back(stub):
@@ -143,7 +142,7 @@ def test_log_has_per_stage_timing(stub, tmp_path, monkeypatch):
     replies.append(GOOD)
     monkeypatch.setattr(config, "LOG_PATH", tmp_path / "q.jsonl")
     TestClient(app).post("/ask", json={"question": "berapa deal?"})
-    assert set(json.loads(config.LOG_PATH.read_text(encoding="utf-8"))["timing"]) == {"generate", "execute", "interpret"}
+    assert set(json.loads(config.LOG_PATH.read_text(encoding="utf-8"))["timing"]) == {"generate", "execute"}
 
 
 def test_long_ranking_gets_a_note(stub, monkeypatch):
@@ -151,7 +150,7 @@ def test_long_ranking_gets_a_note(stub, monkeypatch):
     replies.append("SELECT d.value FROM deals AS d FINAL ORDER BY d.value DESC")
     monkeypatch.setattr(executor, "run", lambda sql: (["value"], [[i] for i in range(30)]))
     r = text_to_sql.ask("deal terbesar")
-    assert r.interpretation.startswith("Saya membaca ini sebagai: tes") and "bukan hanya yang teratas" in r.interpretation
+    assert "bukan hanya yang teratas" in r.interpretation
 
 
 def test_answer_carries_a_rule_based_summary(stub, monkeypatch):
