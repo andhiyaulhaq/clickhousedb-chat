@@ -42,7 +42,7 @@ def summarize(columns: list[str], rows: list[list], english: bool = False) -> st
         return None
     name, hi, lo = columns[metric].replace("_", " "), _num(hv, english), _num(lv, english)
     if english:
-        return (f"{len(rows)} periods. Highest {name} on {hl} ({hi}), lowest on {ll} ({lo})." if series
-                else f"{len(rows)} rows. Highest {name}: {hl} ({hi}); lowest: {ll} ({lo}).")
-    return (f"{len(rows)} periode. {name} tertinggi pada {hl} ({hi}), terendah pada {ll} ({lo})." if series
-            else f"{len(rows)} baris. {name} tertinggi: {hl} ({hi}); terendah: {ll} ({lo}).")
+        return (f"{len(rows)} periods. {name}: highest on {hl} ({hi}), lowest on {ll} ({lo})." if series
+                else f"{len(rows)} rows. {name}: highest {hl} ({hi}), lowest {ll} ({lo}).")
+    return (f"{len(rows)} periode. {name}: tertinggi pada {hl} ({hi}), terendah pada {ll} ({lo})." if series
+            else f"{len(rows)} baris. {name}: tertinggi {hl} ({hi}), terendah {ll} ({lo}).")

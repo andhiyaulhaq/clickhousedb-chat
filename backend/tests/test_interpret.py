@@ -110,3 +110,17 @@ def test_shape_note_only_for_a_long_descending_ranking_without_limit():
     assert interpret.shape_note(ranked + " LIMIT 5", 291, False) == ""  # the user asked for a top N
     assert interpret.shape_note(ranked.replace("DESC", "ASC"), 291, False) == ""  # time series and alphabetical lists
     assert interpret.shape_note("SELECT d.value FROM deals AS d FINAL", 291, False) == ""
+
+
+def test_shape_note_warns_that_array_join_groups_overlap():
+    per_product = "SELECT product, sum(d.value) AS r FROM deals AS d FINAL ARRAY JOIN d.products_involved AS product WHERE d.stage = 'won' GROUP BY product"
+    assert "beberapa produk atau tag" in interpret.shape_note(per_product, 5, False)  # also for a short result
+    assert "several products or tags" in interpret.shape_note(per_product, 5, True)
+    assert interpret.shape_note(per_product.replace(" GROUP BY product", ""), 5, False) == ""  # not an aggregate
+    both = interpret.shape_note(per_product + " ORDER BY r DESC", 30, False)
+    assert "beberapa produk atau tag" in both and "bukan hanya yang teratas" in both
+
+
+def test_date_basis_ignores_a_raw_column_name_in_the_line():
+    sql = "SELECT count() FROM deals AS d FINAL WHERE d.created_date >= today()"
+    assert interpret.date_basis("jumlah deal (created_date) tahun ini.", sql, False) == " (Dasar tanggal: tanggal deal dibuat.)"

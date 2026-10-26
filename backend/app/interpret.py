@@ -105,8 +105,8 @@ def consistent(line: str, sql: str) -> bool:
 
 
 # deals have two dates, so "last month" is ambiguous; the model often leaves out which one the SQL used
-_DATE_BASIS = (("created_date", r"dibuat|created", "tanggal deal dibuat", "deal creation date"),
-               ("closed_date", r"ditutup|closed|closing", "tanggal deal ditutup", "deal close date"))
+_DATE_BASIS = (("created_date", r"dibuat|created(?!_)", "tanggal deal dibuat", "deal creation date"),
+               ("closed_date", r"ditutup|closed(?!_)|closing", "tanggal deal ditutup", "deal close date"))
 
 
 def date_basis(line: str, sql: str, english: bool) -> str:
@@ -120,19 +120,27 @@ def date_basis(line: str, sql: str, english: bool) -> str:
 PREVIEW_ROWS = 20  # the UI shows this many rows first
 
 
-def shape_note(sql: str, n_rows: int, english: bool) -> str:
-    """Say so when a ranking (ORDER BY ... DESC) came back whole: \"customer with the largest deal\" returned all 291. Read from the SQL."""
-    if n_rows <= PREVIEW_ROWS:
-        return ""
+def _unbounded_ranking(sql: str) -> bool:
     try:
         tree = sqlglot.parse_one(sql, read="clickhouse")
     except sqlglot.errors.SqlglotError:
-        return ""
+        return False
     order = tree.args.get("order") if isinstance(tree, exp.Select) else None
-    if tree.args.get("limit") is not None or order is None or not order.expressions[0].args.get("desc"):
-        return ""
-    return ("(All matching rows are shown, sorted descending, not just the top ones.)" if english
-            else "(Semua baris yang cocok ditampilkan, diurutkan menurun, bukan hanya yang teratas.)")
+    return order is not None and tree.args.get("limit") is None and bool(order.expressions[0].args.get("desc"))
+
+
+def shape_note(sql: str, n_rows: int, english: bool) -> str:
+    """Caveats read from the SQL, never from the model:
+    - a grouped ARRAY JOIN counts a row once per product or tag, so the groups add up to more than the real total
+    - a long ranking (ORDER BY ... DESC, no LIMIT) came back whole: "customer with the largest deal" returned 291 rows"""
+    notes = []
+    if re.search(r"\barray\s+join\b", sql, re.I) and re.search(r"\bgroup\s+by\b", sql, re.I):
+        notes.append("(A row with several products or tags is counted in each of them, so the groups can add up to more than the real total.)" if english
+                     else "(Satu baris yang punya beberapa produk atau tag dihitung di setiap grupnya, jadi jumlah antar grup bisa melebihi total sebenarnya.)")
+    if n_rows > PREVIEW_ROWS and _unbounded_ranking(sql):
+        notes.append("(All matching rows are shown, sorted descending, not just the top ones.)" if english
+                     else "(Semua baris yang cocok ditampilkan, diurutkan menurun, bukan hanya yang teratas.)")
+    return " ".join(notes)
 
 
 def raw(question: str, sql: str, model: str | None = None) -> str | None:

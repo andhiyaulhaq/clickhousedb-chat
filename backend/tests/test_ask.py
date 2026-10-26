@@ -159,4 +159,4 @@ def test_answer_carries_a_rule_based_summary(stub, monkeypatch):
     replies.append(GOOD)
     monkeypatch.setattr(executor, "run", lambda sql: (["segmen", "n"], [["Enterprise", 10], ["SMB", 4]]))
     r = text_to_sql.ask("jumlah pelanggan per segmen")
-    assert r.summary == "2 baris. n tertinggi: Enterprise (10); terendah: SMB (4)."
+    assert r.summary == "2 baris. n: tertinggi Enterprise (10), terendah SMB (4)."
